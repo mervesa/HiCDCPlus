@@ -2,22 +2,21 @@ Package: HiCDCPlus
 Type: Package
 Title: Hi-C Direct Caller Plus
 Version: 0.2.0
-Author: Merve Sahin
-Maintainer: Merve Sahin <merve.sahn@gmail.com>
 Description: A principled method to call statistically significant interactions.
+Authors@R: person("Merve", "Sahin", email="merve.sahn@gmail.com", role=c("cre","aut"), comment=c(ORCID = "0000-0003-3858-8332"))
 License: GPL-3
 Encoding: UTF-8
-LazyData: true
+LazyData: TRUE
 biocViews: DNA3DStructure, Software, HiC, Normalization, Preprocessing,
         GenomeAssembly
 RoxygenNote: 7.1.1
 SystemRequirements: JRE 8+
 LinkingTo: Rcpp
-Imports:
-        Rcpp,InteractionSet,GenomicInteractions,bbmle,pscl,BSgenome,data.table,dplyr,tidyr,GenomeInfoDb,rlang,splines,MASS,GenomicRanges,IRanges,tibble,R.utils,Biostrings,rtracklayer,methods,S4Vectors
+Imports: Rcpp,InteractionSet,GenomicInteractions,bbmle,pscl,BSgenome,data.table,dplyr,tidyr,GenomeInfoDb,rlang,splines,MASS,GenomicRanges,IRanges,tibble,R.utils,Biostrings,rtracklayer,methods,S4Vectors
 Suggests: BSgenome.Mmusculus.UCSC.mm9, BSgenome.Mmusculus.UCSC.mm10,
         BSgenome.Hsapiens.UCSC.hg19, BSgenome.Hsapiens.UCSC.hg38,
         RUnit, BiocGenerics, knitr, rmarkdown, HiTC, DESeq2, Matrix
+Enhances: parallel
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2020-10-15 00:01:17 UTC; root
+
