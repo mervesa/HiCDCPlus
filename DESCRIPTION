@@ -1,7 +1,7 @@
 Package: HiCDCPlus
 Type: Package
 Title: Hi-C Direct Caller Plus
-Version: 0.99.0
+Version: 0.99.1
 Description: A principled method to call statistically significant interactions.
 Authors@R: person("Merve", "Sahin", email="merve.sahn@gmail.com", role=c("cre","aut"), comment=c(ORCID = "0000-0003-3858-8332"))
 License: GPL-3
