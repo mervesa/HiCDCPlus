@@ -1,0 +1,23 @@
+citHeader("To cite HiCDCPlus in publications use:")
+
+citEntry(entry = "Article",
+  title        = "HiC-DC+: systematic 3D interaction calls and differential analysis for Hi-C and HiChIP",
+  author       = personList(as.person("Merve Sahin"),
+                   as.person("Wilfred Wong"),
+                   as.person("Yingqian Zhan"),
+                   as.person("Kinsey Van Deynze"),
+                   as.person("Richard Koche"),
+                   as.person("Christina S. Leslie")),
+  journal      = "BioRxiv",
+  year         = "2020",
+  volume       = "10.11",
+  number       = "335273",
+  pages        = "1--16",
+  url          = "https://doi.org/10.1101/2020.10.11.335273",
+
+  textVersion  =
+  paste("Merve Sahin et al. (2020).",
+        "HiC-DC+: systematic 3D interaction calls and differential analysis for Hi-C and HiChIP.",
+        "BioRxiv, 2020.10.11(335273), 1-16.",
+        "URL https://doi.org/10.1101/2020.10.11.335273.")
+)

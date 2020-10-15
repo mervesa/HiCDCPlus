@@ -1,0 +1,398 @@
+---
+title: "Analyzing Hi-C and HiChIP data with HiCDCPlus"
+author: "Merve Sahin"
+date: "`r format(Sys.Date(), '%m/%d/%Y')`"
+abstract: >
+  A necessary task in the analysis of HiC or HiChIP count data is the detection of statistically significant and differential genomic interactions. 
+  The count data are available as a table which reports, with regions typically as genomic regions binned uniformly or across restriction enzyme fragments, the number of interactions between pairs of genomic regions. The package HiCDCPlus
+  provides methods to determine significant and differential chromatin interactions by use of a
+  negative binomial generalized linear model, as well as implementations for TopDom to call topologically associating domains (TADs), and Juicer eigenvector to find the A/B compartments. This vignette explains the use of
+  the package and demonstrates typical workflows on HiC and HiChIP data.
+  HiCDCPlus package version: `r packageVersion("HiCDCPlus")`
+output:
+  rmarkdown::html_document:
+    highlight: pygments
+    toc: true
+    fig_width: 5
+vignette: >
+  %\VignetteIndexEntry{Analyzing Hi-C and HiChIP data with HiCDCPlus}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+  %\usepackage[utf8]{inputenc}
+---
+
+
+
+```{r setup, echo=FALSE, results="hide"}
+knitr::opts_chunk$set(tidy = FALSE,
+                      cache = FALSE,
+                      dev = "png",
+                      message = FALSE, error = FALSE, warning = TRUE)
+library(HiCDCPlus)
+```	
+
+
+**Note:** if you use HiCDCPlus in published research, please cite:
+
+> Sahin, M., Wong, W., Zhan, Y., Van Deyze, K., Koche, R., and Leslie, C. S.
+> (2020)
+> HiC-DC+: systematic 3D interaction calls and differential analysis 
+> for Hi-C and HiChIP
+> *BioRxiv*, **335273**.
+> [10.1101/TBD](http://dx.doi.org/10.1101/2020.10.11.335273)
+
+# Installation
+
+To install this package, start R and enter:
+
+```{r quickStart_sig, eval=FALSE}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("HiCDCPlus")
+```
+
+# Standard workflow
+
+## Overview {#overview}
+
+`HiCDCPlus` can take the outputs of the popular Hi-C pre-processing tools such as .hic (from Juicebox), .matrix, and .allValidPairs (from HiC-Pro). It can also be used with HTClist objects (from Bioconductor package HiTC). 
+
+In the standard workflow, one first needs to generate genomic features present in the `HiCDCPlus` model (GC content, mappability, effective length) using the `construct.features` function (see [Creating genomic feature files](#bintolen)). This can be either done for uniformly or multiple restriction fragment binned data. 
+
+`HiCDCPlus` stores counts and features in a memory-efficient way using what we name as a `gi_list` instance(see [The `gi_list` instance](#gi_list)). One next feeds the genomic features in the form of a `gi_list` instance using `generate.bintolen.gi.list` function. Then, counts can be added to this `gi_list` instance using dedicated functions for each input Hi-C file format (`add.hic.counts`, `add.hicpro.matrix.counts`,`add.hicpro.allvalidpairs.counts`).  
+
+Before modeling, 1D features from the `gi_list` instance coming from the bintolen file must be expanded to 2D using `expand.1D.features` function. Different transformations can be applied to combine genomic features derived for each anchor. 
+
+At the core of `HiCDCPlus` is an efficient implementation of the [HiC-DC](https://www.nature.com/articles/ncomms15454) negative binomial count model for normalization and removal of biases
+(see ?HiCDCPlus). A platform-agnostic parallelizable implementation is also available in the `HiCDCPlus.parallel` function for efficient interaction 
+calling across chromosomes. The `HiCDCPlus` (or `HiCDCPlus.parallel`)
+function outputs the significance of each interaction (`pvalue` and FDR
+adjusted p-value `qvalue`) along with following estimated from the model: 
+1. `mu`: expected interaction frequency estimated from biases, 
+2. `sdev`: the standard deviation of expected interaction frequencies. 
+
+Once results are obtained, they can be output into text files using `gi.list.write` function or to a `.hic` file using the `hicdc2hic`function (where one can pass either raw counts, observed/expected normalized
+counts, -log10 _P_-value, -log10 _P_-adjusted value, or 
+negative binomial Z-score normalized counts: (counts-mu)/sdev to the `.hic` file
+
+To detect differential significant interactions across conditions, `HiCDCPlus` also provides a modified implementation of
+[DESeq2](https://bioconductor.org/packages/DESeq2/) using replicate Hi-C/HiChIP datasets `hicdcdiff`. This function requires a
+(1) definition of the experimental setup (see ?hicdcdiff), (2) a filtered set of interactions to consider, as a text file containing columns `chr`, `startI`, and `startJ` (startI<=startJ) and (3)
+count data per each condition and replicate either as `gi_list` instances or as output text files generated using the `gi.list.write` function that can be read as valid `gi_list` instances using `gi.list.read`.
+The `hicdcdiff`
+function performs the differential analysis and outputs genomic coordinates of
+pairs of regions with corresponding logFC difference, _P_-value and BH adjusted
+_P_-value (see the example in [Quickstart](#diff_int)).
+
+We next demonstrate the standard workflow to detect significant as well as differential interactions. 
+
+## Quickstart {#quickstart}
+
+In this section we show a complete workflow for identifying significant
+interactions and differential interactions from Hi-C data across replicate
+experiments. For HiChIP, the functions used are the same, but the distance thresholds used are slightly reduced (recommended Dmax = 1.5e6).
+
+### Finding Significant Interactions from Hi-C/HiChIP
+
+Here, we identify significant interactions from HiC data at 50kb resolution across multiple chromosomes (in the example
+below, across chromosomes 21 and 22). The following example code chunk assumes that
+you have downloaded a `.hic` file from [GSE63525](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE63525) and 
+also downloaded [Juicebox command line tools](https://github.com/aidenlab/juicer/wiki/Download). Example
+below runs with [GSE63525_HMEC_combined.hic](http://hgdownload.soe.ucsc.edu/gbdb/hg19/bbi/hic/GSE63525_HMEC_combined.hic) and stores the path to it into the variable `hicfile_path` with features generated for restriction enzyme fragments with the pattern `"GATC"` in hg19 genome.
+
+```{r quickStart_sig1}
+hicfile_path<-system.file("extdata", "GSE63525_HMEC_combined_example.hic", package = "HiCDCPlus")
+outdir<-tempdir(check=TRUE)
+#generate features
+construct.features(output_path=paste0(outdir,"/hg19_50kb_GATC"),
+                   gen="Hsapiens",gen_ver="hg19",
+                   sig="GATC",
+                   bin_type="Bins-uniform",
+                   binsize=50000,
+                   chrs=c("chr21","chr22"))
+```
+
+If you have a multiple enzyme cocktail used to generate Hi-C data, you can specify multiple patterns including `"N"` as string to this function (e.g., sig=c("GATC","GANTC")).
+If you want to analyze data binned by multiple restriction enzyme fragments, you can change bin_type to "Bins-RE-sites", and binsize to the number of fragments that you would like to merge as bin (e.g., bin_type="Bins-RE-sites" and binsize=10 means 10 restriction fragment binning).
+
+```{r quickStart_sig2}
+#generate gi_list instance
+gi_list<-generate.bintolen.gi.list(
+  bintolen_path=paste0(outdir,"/hg19_50kb_GATC_bintolen.txt.gz"))
+#add .hic counts
+gi_list<-add.hic.counts(gi_list,hic_path = hicfile_path)
+```
+
+If you have HiC-Pro outputs instead, you can use either `add.hicpro.matrix.counts` or `add.hicpro.allvalidpairs.counts` depending on the file format. `add.hicpro.matrix.counts` function requires .bed output from HiC-Pro matrix generation step, together with count data in .matrix format.
+
+```{r quickStart_sig3}
+#expand features for modeling
+gi_list<-expand.1D.features(gi_list)
+#run HiC-DC+ 
+set.seed(1010) #HiC-DC downsamples rows for modeling
+gi_list<-HiCDCPlus(gi_list) #HiCDCPlus.parallel runs in parallel across ncores
+head(gi_list)
+#write normalized counts (observed/expected) to a .hic file
+hicdc2hic(gi_list,hicfile=paste0(outdir,'/GSE63525_HMEC_combined_result.hic'),
+          mode='normcounts',gen_ver='hg19')
+#write results to a text file
+gi.list.write(gi_list,fname=paste0(outdir,'/GSE63525_HMEC_combined_result.txt.gz'))
+```
+
+`HiCDCPlus` results can be converted into .hic using `hicdc2hic` function. Values that should be supplied as "mode" into the `hicdc2hic` function for the corresponding score stored in the .hic file are: 'pvalue' for -log10 significance p-value, 'qvalue' for -log10 FDR corrected p-value, 'normcounts' for raw counts/expected counts, 'zvalue' for standardized counts (raw counts-expected counts)/modeled standard deviation of expected counts and 'raw' to pass-through raw counts. 
+
+.hic files can be further converted into .cool format using hic2cool software and be visualized using HiCExplorer. 
+
+## Finding Differential Interactions {#diff_int}
+
+Suppose we're interested in finding differential interactions on `chr21` 
+and `chr22` at 50kb between
+NSD2 and NTKO/TKO cells given the following `.hic` files available in
+[GSE131651](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE131651):
+`GSE131651_NSD2_LOW_arima.hic`, `GSE131651_NSD2_HIGH_arima.hic`,
+`GSE131651_TKOCTCF_new.hic`, `GSE131651_NTKOCTCF_new.hic`. We first find 
+significant interactions in each, and save results to a file:
+
+```{r quickStart_diff1}
+#generate features
+construct.features(output_path=paste0(outdir,"/hg38_50kb_GATC"),
+                   gen="Hsapiens",gen_ver="hg38",
+                   sig="GATC",bin_type="Bins-uniform",
+                   binsize=50000,
+                   chrs=c("chr21","chr22"))
+#add .hic counts
+hicfile_paths<-c(
+system.file("extdata", "GSE131651_NSD2_LOW_arima_example.hic", package = "HiCDCPlus"),
+system.file("extdata", "GSE131651_NSD2_HIGH_arima_example.hic", package = "HiCDCPlus"),
+system.file("extdata", "GSE131651_TKOCTCF_new_example.hic", package = "HiCDCPlus"),
+system.file("extdata", "GSE131651_NTKOCTCF_new_example.hic", package = "HiCDCPlus"))
+indexfile<-data.frame()
+for(hicfile_path in hicfile_paths){
+output_path<-paste0(outdir,'/',
+                    gsub("^(.*[\\/])", "",gsub('.hic','.txt.gz',hicfile_path)))
+#generate gi_list instance
+gi_list<-generate.bintolen.gi.list(
+  bintolen_path=paste0(outdir,"/hg38_50kb_GATC_bintolen.txt.gz"),
+  gen="Hsapiens",gen_ver="hg38")
+gi_list<-add.hic.counts(gi_list,hic_path = hicfile_path)
+#expand features for modeling
+gi_list<-expand.1D.features(gi_list)
+#run HiC-DC+ on 2 cores
+set.seed(1010) #HiC-DC downsamples rows for modeling
+gi_list<-HiCDCPlus(gi_list,ssize=0.1)
+for (i in seq(length(gi_list))){
+indexfile<-unique(rbind(indexfile,
+  as.data.frame(gi_list[[i]][gi_list[[i]]$qvalue<=0.05])[c('seqnames1',
+                                                           'start1','start2')]))
+}
+#write results to a text file
+gi.list.write(gi_list,fname=output_path)
+}
+#save index file---union of significants at 50kb
+colnames(indexfile)<-c('chr','startI','startJ')
+data.table::fwrite(indexfile,
+            paste0(outdir,'/GSE131651_analysis_indices.txt.gz'),
+            sep='\t',row.names=FALSE,quote=FALSE)
+```
+
+We next get the union set of significant interactions and save it as the index file, and then run `hicdcdiff`.
+
+```{r quickStart_diff2}
+
+#Differential analysis using modified DESeq2 (see ?hicdcdiff)
+hicdcdiff(input_paths=list(NSD2=c(paste0(outdir,'/GSE131651_NSD2_LOW_arima_example.txt.gz'),
+                 paste0(outdir,'/GSE131651_NSD2_HIGH_arima_example.txt.gz')),
+TKO=c(paste0(outdir,'/GSE131651_TKOCTCF_new_example.txt.gz'),
+paste0(outdir,'/GSE131651_NTKOCTCF_new_example.txt.gz'))),
+filter_file=paste0(outdir,'/GSE131651_analysis_indices.txt.gz'),
+output_path=paste0(outdir,'/diff_analysis_example/'),
+fitType = 'mean',
+binsize=50000,
+diagnostics=TRUE)
+#Check the generated plots as well as DESeq2 results
+```
+
+Suppose you provide multiple conditions in input_paths such as input_paths=list(A="..",B="..",C=".."), then the pairwise comparisons reported by `hicdcdiff` will be B over A, C over B, C over A.
+
+### ICE normalization using HiTC {#ice}
+To find TADs, we use ICE normalized Hi-C data. If you use HiC-Pro to process counts, we suggest feeding ICE normalized .matrix files into a `gi_list` instance. 
+
+```{r quickStart_ice1, eval=FALSE}
+gi_list<-generate.binned.gi.list(50000,chrs=c("chr21","chr22"))
+gi_list<-add.hicpro.matrix.counts(gi_list,absfile_path,matrixfile_path,chrs=c("chr21","chr22")) #add paths to iced absfile and matrix files here
+```
+
+If you have .hic file instead, then you can perform ICE normalization with our HiTC wrapper as follows:
+
+```{r quickStart_ice2}
+hic_path<-system.file("extdata", "GSE63525_HMEC_combined_example.hic", package = "HiCDCPlus")
+gi_list=hic2icenorm.gi.list(hic_path,binsize=50e3,chrs=c('chr21','chr22'))
+```
+
+You can also output a ICE normalized .hic file from `hic2icenorm.gi.list` function if you set file_out=TRUE with the name of gsub(".hic","_icenorm.hic",hic_path).
+
+### Finding TADs using TopDom {#topdom}
+
+`HiCDCPlus` converts the gi_list instance with ICE normalized counts into TAD annotations through an implementation of TopDom v0.0.2 (https://github.com/HenrikBengtsson/TopDom) adapted as TopDom. We recommend call TADs with to ICE normalized counts at 50kb resolution with window.size 10 in TopDom. 
+
+```{r quickStart_ice3}
+tads<-gi.list.topdom(gi_list,chrs=c("chr21","chr22"),window.size = 10)
+```
+
+### Finding A/B compartment using Juicer {#comp}
+
+`HiCDCPlus` can call Juicer eigenvector function to determine A/B compartments from .hic files. `extract.hic.eigenvectors` generates text files for each chromosome containing chromosome, start, end and compartment score values that may need to be flipped signs for each chromosome. File paths follow gsub('.hic','_<chromosome>_eigenvalues.txt',hicfile).
+
+```{r quickStart_comp1, eval=FALSE}
+extract.hic.eigenvectors(
+  hicfile=system.file("extdata", "GSE63525_HMEC_combined_example.hic", package = "HiCDCPlus"),
+  mode = "KR",
+  binsize = 50e3,
+  chrs = "chr22",
+  gen = "Hsapiens",
+  gen_ver = "hg19"
+)
+```
+
+# Creating genomic feature files {#bintolen}
+Genomic features can be generated using the `construct.features` function. 
+This function finds all restriction enzyme cutsites of a given genome and genome
+version and computes GC content, mappability (if a relevant 
+`.bigWig` file is provided) and effective fragment length for
+uniform bin or across specified multiples of restriction enzyme cutsites of
+given pattern(s).
+```{r generate_bintolen}
+#generate features
+construct.features(output_path=paste0(outdir,"/hg19_50kb_GATC"),
+                   gen="Hsapiens",gen_ver="hg19",
+                   sig=c("GATC","GANTC"),bin_type="Bins-uniform",
+                   binsize=50000,
+                   wg_file=NULL, #e.g., 'hg19_wgEncodeCrgMapabilityAlign50mer.bigWig',
+                   chrs=c("chr21","chr22"))
+#read and print
+bintolen<-data.table::fread(paste0(outdir,"/hg19_50kb_GATC_bintolen.txt.gz"))
+tail(bintolen,20)
+```
+
+# The `gi_list` instance {#gi_list}
+
+`HiCDCPlus` stores features and count data in a list of `InteractionSet` objects generated for each chromosome, what we name as a `gi_list` instance. 
+
+A `gi_list` instance can be initialized through multiple ways. One can generate
+a uniformly binsized `gi_list` instance using `generate.binned.gi.list`. One can
+also generate a restriction enzyme fragment binning of the 
+genome as a `data.frame` and ingest it as a `gi_list` instance (see 
+?generate.df.gi.list) Third, one can generate
+some genomic features (GC content, mappability, effective length) and
+restriction enzyme fragment regions into as a `bintolen` file
+(see [Creating bintolen files](#bintolen)) and generate a `gi_list` instance
+from this `bintolen` file. Finally, one can read a `gi_list` instance from a
+file generated by `gi.list.write` (see ?gi.list.read). 
+
+## Uniformly binned `gi_list` instance {#uniform}
+One can generate a uniform binsized `gi_list` instance for a genome using
+`generate.binned.gi.list`:
+```{r gi_list_uniform}
+gi_list<-generate.binned.gi.list(binsize=50000,chrs=c('chr20','chr21'),
+                                 gen="Hsapiens",gen_ver="hg19")
+head(gi_list)
+```
+
+## Restriction enzyme binned `gi_list` instance {#re_sites}
+One can also generate an restriction enzyme fragment binning
+(indeed, any arbitrary binning) of the 
+genome containing columns named `chr` and `start` as a `data.frame` 
+(e.g., a `data.frame` read from a `.bed` file) and use it
+to generate a `gi_list` instance using `generate.df.gi.list`.
+
+```{r gi_list_rebinned}
+df<-data.frame(chr='chr9',start=c(1,300,7867,103938))
+gi_list<-generate.df.gi.list(df)
+gi_list
+```
+
+## Generating `gi_list` instance from a bintolen file
+One can generate genomic features (gc, mappability, effective length)
+and restriction enzyme
+fragment regions as a `bintolen` file
+(see [Creating bintolen files](#bintolen)) first and then generate 
+a `gi_list` instance
+from it. This instance will readily store genomic features of the
+`bintolen` file.
+```{r gi_list_bintolen}
+#generate features
+construct.features(output_path=paste0(outdir,"/hg19_50kb_GATC"),
+                   gen="Hsapiens",gen_ver="hg19",
+                   sig="GATC",bin_type="Bins-uniform",
+                   binsize=50000,
+            wg_file=NULL, #e.g., 'hg19_wgEncodeCrgMapabilityAlign50mer.bigWig',
+                   chrs=c("chr21","chr22"))
+#generate gi_list instance
+gi_list<-generate.bintolen.gi.list(
+  bintolen_path=paste0(outdir,"/hg19_50kb_GATC_bintolen.txt.gz"))
+head(gi_list)
+```
+
+# Using custom features with HiCDCPlus
+
+HiCDCPlus allows modeling with user-defined 1D (genomic features for each bin) and 2D (features belonging to an interaction) features. 
+
+Once a `gi_list` instance is at hand, one can ingest counts (and 2D features) using a sparse matrix format text file  containing `chr`, `startI`, `startJ` and `<featurename>` 
+columns (see ?add.2D.features) for features you would like to add. `counts`
+can be ingested this way as well provided you have a text file containing 
+columns named `chr`, `startI` and `startJ`.
+
+```{r custom_features_2D}
+df<-data.frame(chr='chr9',start=seq(1e6,10e6,1e6))
+gi_list<-generate.df.gi.list(df,Dthreshold=500e3,chrs="chr9")
+feats<-data.frame(chr='chr9',
+startI=seq(1e6,10e6,1e6),
+startJ=seq(1e6,10e6,1e6),
+counts=rpois(20,lambda=5))
+gi_list[['chr9']]<-add.2D.features(gi_list[['chr9']],feats)
+gi_list
+```
+
+One can also ingest 1D features using a sparse matrix format text file 
+containing `chr`, `start` and `<featurename>` (see ?add.1D.features)
+and broadcast 1D features to 2D for modeling using a user-specified function
+(see ?expand.1D.features). Ingesting 1D features first and then expanding has
+a better memory footprint compared to using `add.2D.features` directly.
+
+```{r custom_features_1D}
+df<-data.frame(chr='chr9',start=seq(1e6,10e6,1e6),end=seq(2e6,11e6,1e6))
+gi_list<-generate.df.gi.list(df)
+feats<-data.frame(chr='chr9',start=seq(1e6,10e6,1e6),gc=runif(10))
+gi_list<-add.1D.features(gi_list,feats)
+gi_list
+```
+
+```{r custom_features_1D_2}
+mcols(InteractionSet::regions(gi_list[['chr9']]))
+```
+
+```{r custom_features_1D_expand}
+gi_list<-expand.1D.features(gi_list)
+gi_list
+```
+
+# How to get help for HiCDCPlus
+
+Any and all HiCDCPlus questions should be posted to the 
+**Bioconductor support site**, which serves as a searchable knowledge
+base of questions and answers:
+
+<https://support.bioconductor.org>
+
+Posting a question and tagging with "HiCDCPlus" or "HiC-DC+" will automatically
+send an alert to the package authors to respond on the support site.  
+You should **not** email your question to the package authors directly, 
+as we will just reply that the question should be posted to the 
+**Bioconductor support site** instead.
+
+# Session info
+
+```{r sessionInfo}
+sessionInfo()
+```
