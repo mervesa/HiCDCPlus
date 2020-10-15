@@ -37,3 +37,30 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+# compiled code
+.o
+.sl
+.so
+.dylib
+.a
+.dll
+.def
+
+#Miscallaneous entries not accepted by Bioconductor
+.DS_Store
+.unsrturl.bst
+.log
+.aux
+.backups
+.cproject
+.directory
+.dropbox
+.exrc
+.gdb.history
+.gitattributes
+.gitmodules
+.hgtags
+.project
+.seed
+.settings
+.tm_properties
