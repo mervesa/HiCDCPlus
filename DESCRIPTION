@@ -2,7 +2,7 @@ Package: HiCDCPlus
 Type: Package
 Title: Hi-C Direct Caller Plus
 Version: 0.99.0
-Description: Systematic 3D interaction calls and differential analysis for Hi-C and HiChIP
+Description: Systematic 3D interaction calls and differential analysis for Hi-C and HiChIP.
 Authors@R: person("Merve", "Sahin", email="merve.sahn@gmail.com", role=c("cre","aut"), comment=c(ORCID = "0000-0003-3858-8332"))
 License: GPL-3
 Encoding: UTF-8
