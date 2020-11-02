@@ -29,7 +29,7 @@ knitr::opts_chunk$set(tidy = FALSE,
                       dev = "png",
                       message = FALSE, error = FALSE, warning = TRUE)
 library(HiCDCPlus)
-```	
+```
 
 
 **Note:** if you use HiCDCPlus in published research, please cite:
@@ -237,7 +237,7 @@ You can also output a ICE normalized .hic file from `hic2icenorm.gi.list` functi
 `HiCDCPlus` converts the gi_list instance with ICE normalized counts into TAD annotations through an implementation of TopDom v0.0.2 (https://github.com/HenrikBengtsson/TopDom) adapted as TopDom. We recommend call TADs with to ICE normalized counts at 50kb resolution with window.size 10 in TopDom. 
 
 ```{r quickStart_ice3}
-tads<-gi.list.topdom(gi_list,chrs=c("chr21","chr22"),window.size = 10)
+tads<-gi.list.topdom(gi_list,chrs=c("chr22"),window.size = 10)
 ```
 
 ### Finding A/B compartment using Juicer {#comp}
