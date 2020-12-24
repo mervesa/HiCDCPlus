@@ -10,7 +10,7 @@ hicdc2hic(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ver = "hg19")
 \item{gi_list}{List of \code{GenomicInteractions} objects where each object
 named with chromosomes contains intra-chromosomal interaction information
 (minimally containing counts and genomic distance in \code{mcols(gi_list)}---
-see \code{?gi.list.validate} for a detailed explanation of valid
+see \code{?gi_list_validate} for a detailed explanation of valid
 \code{gi_list} instances).}
 
 \item{hicfile}{the path to the .hic file}
@@ -40,8 +40,8 @@ with 'NONE' normalization.
 }
 \examples{
 outdir<-paste0(tempdir(check=TRUE),'/')
-gi_list<-generate.binned.gi.list(50e3,chrs='chr22')
-gi_list<-add.hic.counts(gi_list,
+gi_list<-generate_binned_gi_list(50e3,chrs='chr22')
+gi_list<-add_hic_counts(gi_list,
 hic_path=system.file("extdata", "GSE63525_HMEC_combined_example.hic",
 package = "HiCDCPlus"))
 hicdc2hic(gi_list,hicfile=paste0(outdir,'out.hic'),

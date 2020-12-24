@@ -2,7 +2,7 @@
 % Please edit documentation in R/hicdcdiff.R
 \name{hicdcdiff}
 \alias{hicdcdiff}
-\title{hicdcdiff.R}
+\title{hicdcdiff}
 \usage{
 hicdcdiff(
   input_paths,
@@ -21,7 +21,7 @@ hicdcdiff(
 }
 \arguments{
 \item{input_paths}{a list with names as condition names and values
-as paths to \code{gi_list} RDS objects (see \code{?gi.list.validate}
+as paths to \code{gi_list} RDS objects (see \code{?gi_list_validate}
 for a detailed explanation of valid \code{gi_list} instances) 
 saved with \code{saveRDS} or
 paths to .hic files for each replicate. e.g.,\code{list(

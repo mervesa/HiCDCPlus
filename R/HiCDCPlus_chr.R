@@ -1,7 +1,8 @@
-#' HiCDCPlus
+#' HiCDCPlus_chr
 #'
 #' This function finds significant interactions in a HiC-DC readable matrix
-#' and expresses statistical significance of counts through the following:
+#' restricted to a single chromosome and expresses statistical significance of 
+#' counts through the following:
 #' 'pvalue': significance \emph{P}-value, 'qvalue': FDR corrected 
 #' \emph{P}-value, mu': expected counts, 'sdev': modeled standard deviation
 #' of expected counts.
@@ -9,24 +10,21 @@
 #'@importFrom dplyr %>%
 #'@importFrom rlang .data
 #'@importFrom S4Vectors mcols<- mcols queryHits subjectHits
-#'@param gi_list List of \code{GenomicInteractions} objects where each object
-#'named with chromosomes contains intrachromosomal interaction information
-#'(minimally containing counts and genomic distance in 
-#'\code{mcols(gi_list[[1]])}---see \code{?gi_list_validate} for a detailed 
-#'explanation of valid \code{gi_list} instances). 
+#'@param gi Instance of a single chromosome \code{GenomicInteractions} object
+#' containing intra-chromosomal interaction information
+#' (minimally containing counts and genomic distance). 
 #'@param covariates covariates to be considered in addition to genomic
 #'distance D. Defaults to all covariates besides 
-#''D','counts','mu','sdev',pvalue','qvalue' in \code{mcols(gi_list[[1]])}
-#'@param chrs select a subset of chromosomes' e.g.,
-#'c('chr21','chr22'). Defaults to all chromosomes
-#'in the \code{gi_list}.
+#''D','counts','mu','sdev',pvalue','qvalue' 
+#'in \code{mcols(gi)}
 #'@param distance_type distance covariate form: 'spline' or 'log'.
 #'Defaults to 'spline'.
-#'@param model_distribution 'nb' uses a Negative Binomial model, 'nb_vardisp' uses a 
-#' Negative Binomial model with a distance specific dispersion parameter inferred 
-#' from the data, 'nb_hurdle' uses the legacy HiCDC model.
+#'@param model_distribution 'nb' uses a Negative Binomial model, 
+#''nb_vardisp' uses a Negative Binomial model with a distance specific 
+#'dispersion parameter inferred from the data, 'nb_hurdle' uses the legacy
+#'HiC-DC model.
 #'@param binned TRUE if uniformly binned or FALSE if binned by
-#'restriction enzyme fragment cutsites
+#'restriction enzyme fragment cut sites.
 #'@param df degrees of freedom for the genomic distance spline
 #'function if \code{distance_type='spline'}. Defaults to 6, which corresponds to
 #'a cubic spline as explained in Carty et al. (2017)
@@ -37,8 +35,6 @@
 #'@param ssize Distance stratified sampling size. Can decrease for
 #' large chromosomes. Increase recommended if
 #' model fails to converge. Defaults to 0.01.
-#'@param model_filepath Outputs fitted HiC-DC model object as an .rds
-#'file per chromosome. Defaults to NULL (no output).
 #'@return A valid \code{gi_list} instance with additional \code{mcols(.)} for
 #'each chromosome: pvalue': significance \emph{P}-value, 'qvalue': FDR 
 #'corrected \emph{P}-value, mu': expected counts, 'sdev': modeled standard
@@ -47,38 +43,23 @@
 #'gi_list<-add_hic_counts(gi_list,
 #'hic_path<-system.file("extdata", "GSE63525_HMEC_combined_example.hic",
 #' package = "HiCDCPlus"))
-#'gi_list<-HiCDCPlus(gi_list)
+#'gi<-HiCDCPlus_chr(gi_list[[1]])
 #'@export
 
-HiCDCPlus <- function(gi_list, covariates = NULL, chrs = NULL, distance_type = "spline", model_distribution = "nb", binned = TRUE, 
-    df = 6, Dmin = 0, Dmax = 2e+06, ssize = 0.01, model_filepath = NULL) {
+HiCDCPlus_chr <- function(gi, covariates = NULL, distance_type = "spline", model_distribution = "nb", binned = TRUE, 
+    df = 6, Dmin = 0, Dmax = 2e+06, ssize = 0.01) {
     options(scipen = 9999, digits = 4)
-    gi_list_validate(gi_list)
-    if (is.null(chrs)) 
-        chrs <- names(gi_list)
-    # check if D and counts exist on each chromosome
-    if (!(all(vapply(gi_list, function(x) sum(colnames(mcols(x)) %in% c("counts", "D")) == 2, TRUE)))) {
-        stop("Some gi_list elements do not contain pairwise distances D
-    and counts, the minimum set of features needed for HiC-DC+ modeling.")
-    }
-    if (!model_distribution %in% c("nb", "nb_hurdle", "nb_vardisp")) {
-        stop("Allowable options for model_distribution are 'nb','nb_hurdle', and
-    nb_vardisp'.")
-    }
-    
     # remove logD, pvalue, qvalue, mu and sdev if they exist
-    for (chrom in chrs) {
-        col_rem <- names(mcols(gi_list[[chrom]]))
-        col_rem <- col_rem[col_rem %in% c("pvalue", "qvalue", "mu", "sdev", "logD")]
-        for (covar in col_rem) {
-            mcols(gi_list[[chrom]])[, covar] <- NULL
-        }
+    col_rem <- names(S4Vectors::mcols(gi))
+    col_rem <- col_rem[col_rem %in% c("pvalue", "qvalue", "mu", "sdev", "logD")]
+    for (covar in col_rem) {
+        S4Vectors::mcols(gi)[, covar] <- NULL
     }
     # set default covariates if need be: the minimum set of features available across chromosomes other than D and counts
     if (is.null(covariates)) {
-        tally <- as.data.frame(base::table(base::vapply(gi_list[chrs], function(x) colnames(mcols(x)), rep("a", length(colnames(mcols(gi_list[[chrs[1]]])))))), 
+        tally <- as.data.frame(base::table(colnames(S4Vectors::mcols(gi))), 
             stringsAsFactors = FALSE)
-        covariates <- as.character(tally$Var1[tally$Freq == length(chrs)])
+        covariates <- as.character(tally$Var1[tally$Freq == 1])
         covariates <- covariates[!covariates %in% c("counts", "D", "pvalue", "qvalue", "mu", "sdev", "logD")]
         if (length(covariates) == 0) 
             covariates <- NULL
@@ -298,26 +279,25 @@ HiCDCPlus <- function(gi_list, covariates = NULL, chrs = NULL, distance_type = "
         return(function(x) base::pmax(suppressWarnings(stats::predict(fit, x)$y), 0.001))
     }
     # main routine for the function
-    for (chrom in chrs) {
+
         # filter into defined covariate rows
-        if ('len'%in%(colnames(mcols(gi_list[[chrom]])))){
-            gi_list[[chrom]]<-gi_list[[chrom]][mcols(gi_list[[chrom]])$len>0]
+        if ('len'%in%(colnames(S4Vectors::mcols(gi)))){
+            gi<-gi[S4Vectors::mcols(gi)$len>0]
         }
-        if ('width'%in%(colnames(mcols(gi_list[[chrom]])))){
-            gi_list[[chrom]]<-gi_list[[chrom]][mcols(gi_list[[chrom]])$width>0]
+        if ('width'%in%(colnames(S4Vectors::mcols(gi)))){
+            gi<-gi[S4Vectors::mcols(gi)$width>0]
         }
-        #new.x <- data.frame(mcols(gi_list[[chrom]]), stringsAsFactors = FALSE) %>% dplyr::filter(.data$D >= Dmin & .data$D <= Dmax)
         # get distance eligible row indices
-        D.eligible <- mcols(gi_list[[chrom]])$D >= Dmin & mcols(gi_list[[chrom]])$D <= Dmax
+        D.eligible <- S4Vectors::mcols(gi)$D >= Dmin & S4Vectors::mcols(gi)$D <= Dmax
         if (distance_type == "spline") {
-            bdpts <- range(mcols(gi_list[[chrom]])$D)
+            bdpts <- range(S4Vectors::mcols(gi)$D)
         } else {
             #new.x$logD <- log2(new.x$D + 1)
-            mcols(gi_list[[chrom]])$logD <- log2(mcols(gi_list[[chrom]])$D + 1)
+            S4Vectors::mcols(gi)$logD <- log2(S4Vectors::mcols(gi)$D + 1)
         }
         if (model_distribution == "nb_vardisp") {
             # get thetas for each D.range
-            dat <- as.data.frame(mcols(gi_list[[chrom]]))%>%dplyr::select(.data$D,.data$counts)
+            dat <- as.data.frame(S4Vectors::mcols(gi))%>%dplyr::select(.data$D,.data$counts)
             dat <- dat %>% dplyr::mutate(D.range = findInterval(.data$D, unique(c(seq(Dmin, min(Dmax, 1e+06), by = 50000), 
                 seq(min(Dmax, 1e+06), min(Dmax, 2e+06), by = 1e+05))), rightmost.closed = TRUE))
             dispersion_DF <- data.frame(stringsAsFactors = FALSE)
@@ -326,18 +306,22 @@ HiCDCPlus <- function(gi_list, covariates = NULL, chrs = NULL, distance_type = "
                 countPairedBins_ix <- seq(nrow(dat))[dat$D.range == x & dat$counts != 0]
                 dat_x_ix <- c(countPairedBins_ix[sample(length(countPairedBins_ix), floor(length(countPairedBins_ix) * ssize), 
                 replace = FALSE)], zeroPairedBins_ix[sample(length(zeroPairedBins_ix), floor(length(zeroPairedBins_ix) * ssize), replace = FALSE)])
-                bdpts_x <- range(mcols(gi_list[[chrom]])[dat_x_ix,]$D)
-                fit <- suppressWarnings(GLM_nb(as.data.frame(mcols(gi_list[[chrom]])[dat_x_ix,]), df, bdpts_x, covariates, distance_type = distance_type))
-                dt <- data.frame(D = mean(mcols(gi_list[[chrom]])[dat_x_ix,]$D), alpha = fit$theta)
+                bdpts_x <- range(S4Vectors::mcols(gi)[dat_x_ix,]$D)
+                fit <- suppressWarnings(GLM_nb(as.data.frame(S4Vectors::mcols(gi)[dat_x_ix,]), df, bdpts_x, covariates, distance_type = distance_type))
+                dt <- data.frame(D = mean(S4Vectors::mcols(gi)[dat_x_ix,]$D), alpha = fit$theta)
                 dispersion_DF <- dplyr::bind_rows(dispersion_DF, dt)
             }
             dispersion <- dispersionfunction(dispersion_DF)
             rm(dat, dat_x_ix, bdpts_x, fit, dt, zeroPairedBins_ix, countPairedBins_ix)
         }
         # get a stratified sample for modeling
-        dat <- as.data.frame(mcols(gi_list[[chrom]]))%>%dplyr::select(.data$D,.data$counts)
+        dat <- as.data.frame(S4Vectors::mcols(gi))%>%dplyr::select(.data$D,.data$counts)
         if (binned) {
-            binsize <- gi_list_binsize_detect(gi_list)
+            get.range <- function(gi) {
+                return(stats::quantile(GenomicRanges::end(InteractionSet::regions(gi)) - GenomicRanges::start(InteractionSet::regions(gi)), 
+                                       probs = c(0.025, 0.975)))
+            }
+            binsize <- min(unique(get.range(gi)))
             dat<-dat%>%dplyr::mutate(D.range = findInterval(.data$D, seq(Dmin, to = Dmax, by = binsize), rightmost.closed = TRUE),
                                      ix=seq(nrow(dat)))
             bins.counts <- split((dat%>%dplyr::filter(.data$counts>0))$ix, (dat%>%dplyr::filter(.data$counts>0))$D.range)
@@ -349,11 +333,11 @@ HiCDCPlus <- function(gi_list, covariates = NULL, chrs = NULL, distance_type = "
             idx.zeros <- unlist(lapply(bins.zeros, function(x) {
                 sample(x, floor(length(x) * ssize), replace = FALSE)
             }))
-            dat <- dplyr::bind_rows(as.data.frame(mcols(gi_list[[chrom]]))[idx.counts, ], as.data.frame(mcols(gi_list[[chrom]]))[idx.zeros, ])
+            dat <- dplyr::bind_rows(as.data.frame(S4Vectors::mcols(gi))[idx.counts, ], as.data.frame(S4Vectors::mcols(gi))[idx.zeros, ])
             rm(bins.counts, bins.zeros, idx.counts, idx.zeros)
         } else {
             
-            dat <- dplyr::bind_rows(as.data.frame(mcols(gi_list[[chrom]])) %>%dplyr::filter(.data$counts>0) %>% dplyr::sample_frac(size = ssize), as.data.frame(mcols(gi_list[[chrom]])) %>%dplyr::filter(.data$counts==0) %>% dplyr::sample_frac(size = ssize))
+            dat <- dplyr::bind_rows(as.data.frame(S4Vectors::mcols(gi)) %>%dplyr::filter(.data$counts>0) %>% dplyr::sample_frac(size = ssize), as.data.frame(S4Vectors::mcols(gi)) %>%dplyr::filter(.data$counts==0) %>% dplyr::sample_frac(size = ssize))
         }
         gc()
         # fit the model on the sample
@@ -365,71 +349,55 @@ HiCDCPlus <- function(gi_list, covariates = NULL, chrs = NULL, distance_type = "
             fit <- suppressWarnings(GLM(dat, df, bdpts, covariates, distance_type))
         }
         # add predictions
-        mcols(gi_list[[chrom]])$mu <- NA
-        mcols(gi_list[[chrom]])$sdev <- NA
+        S4Vectors::mcols(gi)$mu <- NA
+        S4Vectors::mcols(gi)$sdev <- NA
         if (model_distribution == "nb") {
-            mu <- suppressWarnings(stats::predict(fit, newdata = mcols(gi_list[[chrom]])[D.eligible, ], dispersion = fit$theta^(-1), type = "response"))
+            mu <- suppressWarnings(stats::predict(fit, newdata = S4Vectors::mcols(gi)[D.eligible, ], dispersion = fit$theta^(-1), type = "response"))
             sdev <- sqrt(mu + mu^2/fit$theta)
         } else if (model_distribution == "nb_vardisp") {
             logmu.coefs <- fit@coef[grep("logmu+", names(fit@coef))]
             if (distance_type == "spline") {
                 if (!is.null(covariates)) {
-                mu <- exp(logmu.coefs[1] + cbind(vapply(covariates, function(x) mcols(gi_list[[chrom]])[D.eligible, x], 
-                    rep(8, nrow(mcols(gi_list[[chrom]])[D.eligible, ]))), splines::bs(mcols(gi_list[[chrom]])$D[D.eligible], 
+                mu <- exp(logmu.coefs[1] + cbind(vapply(covariates, function(x) S4Vectors::mcols(gi)[D.eligible, x], 
+                    rep(8, nrow(S4Vectors::mcols(gi)[D.eligible, ]))), splines::bs(S4Vectors::mcols(gi)$D[D.eligible], 
                     df = df, Boundary.knots = bdpts)) %*% logmu.coefs[2:length(logmu.coefs)])
                 } else {
-                mu <- exp(logmu.coefs[1] + cbind(splines::bs(mcols(gi_list[[chrom]])$D[D.eligible], df = df, Boundary.knots = bdpts)) %*% 
+                mu <- exp(logmu.coefs[1] + cbind(splines::bs(S4Vectors::mcols(gi)$D[D.eligible], df = df, Boundary.knots = bdpts)) %*% 
                     logmu.coefs[2:length(logmu.coefs)])
                 }
             } else {
                 if (!is.null(covariates)) {
-                mu <- exp(logmu.coefs[1] + cbind(vapply(covariates, function(x) mcols(gi_list[[chrom]])[D.eligible, x], 
-                    rep(8, nrow(mcols(gi_list[[chrom]])[D.eligible, ]))), mcols(gi_list[[chrom]])$logD[D.eligible]) %*% logmu.coefs[2:length(logmu.coefs)])
+                mu <- exp(logmu.coefs[1] + cbind(vapply(covariates, function(x) S4Vectors::mcols(gi)[D.eligible, x], 
+                    rep(8, nrow(S4Vectors::mcols(gi)[D.eligible, ]))), S4Vectors::mcols(gi)$logD[D.eligible]) %*% logmu.coefs[2:length(logmu.coefs)])
                 } else {
-                mu <- exp(logmu.coefs[1] + cbind(mcols(gi_list[[chrom]])$logD[D.eligible]) %*% logmu.coefs[2:length(logmu.coefs)])
+                mu <- exp(logmu.coefs[1] + cbind(S4Vectors::mcols(gi)$logD[D.eligible]) %*% logmu.coefs[2:length(logmu.coefs)])
                 }
             }
-            sizes <- 1/dispersion(mcols(gi_list[[chrom]])$D[D.eligible])
+            sizes <- 1/dispersion(S4Vectors::mcols(gi)$D[D.eligible])
             sdev <- sqrt(mu + mu^2/sizes)
         } else {
-            mu <- suppressWarnings(stats::predict(fit, newdata = mcols(gi_list[[chrom]])[D.eligible, ], dispersion = fit$theta^(-1), type = "count"))
+            mu <- suppressWarnings(stats::predict(fit, newdata = S4Vectors::mcols(gi)[D.eligible, ], dispersion = fit$theta^(-1), type = "count"))
             sdev <- sqrt(mu + mu^2/fit$theta)
             phat_count <- stats::dnbinom(x = 0, size = fit$theta, mu = mu)
-            phat <- 1 - (1 - phat_count) * suppressWarnings(stats::predict(fit, newdata = mcols(gi_list[[chrom]])[D.eligible, ], dispersion = fit$theta^(-1), 
+            phat <- 1 - (1 - phat_count) * suppressWarnings(stats::predict(fit, newdata = S4Vectors::mcols(gi)[D.eligible, ], dispersion = fit$theta^(-1), 
                 type = "zero"))
         }
-        mcols(gi_list[[chrom]])$mu[D.eligible] <- mu
-        mcols(gi_list[[chrom]])$sdev[D.eligible] <- sdev
-        mcols(gi_list[[chrom]])$pvalue <- NA
-        mcols(gi_list[[chrom]])$qvalue <- NA
+        S4Vectors::mcols(gi)$mu[D.eligible] <- mu
+        S4Vectors::mcols(gi)$sdev[D.eligible] <- sdev
+        S4Vectors::mcols(gi)$pvalue <- NA
+        S4Vectors::mcols(gi)$qvalue <- NA
         if (model_distribution == "nb") {
-            pvalues <- stats::pnbinom(q = mcols(gi_list[[chrom]])$counts[D.eligible] - 1, size = fit$theta, mu = mu, lower.tail = FALSE)
+            pvalues <- stats::pnbinom(q = S4Vectors::mcols(gi)$counts[D.eligible] - 1, size = fit$theta, mu = mu, lower.tail = FALSE)
         } else if (model_distribution == "nb_vardisp") {
-            pvalues <- stats::pnbinom(q = mcols(gi_list[[chrom]])$counts[D.eligible] - 1, size = sizes, mu = mu, lower.tail = FALSE)
+            pvalues <- stats::pnbinom(q = S4Vectors::mcols(gi)$counts[D.eligible] - 1, size = sizes, mu = mu, lower.tail = FALSE)
         } else {
-            pvalues <- ifelse(mcols(gi_list[[chrom]])$counts[D.eligible] == 0, 1, (1 - phat)/(1 - phat_count) * (stats::pnbinom(q = mcols(gi_list[[chrom]])$counts[D.eligible], 
-                size = fit$theta, mu = mu, lower.tail = FALSE) + stats::dnbinom(x = mcols(gi_list[[chrom]])$counts[D.eligible], 
+            pvalues <- ifelse(S4Vectors::mcols(gi)$counts[D.eligible] == 0, 1, (1 - phat)/(1 - phat_count) * (stats::pnbinom(q = S4Vectors::mcols(gi)$counts[D.eligible], 
+                size = fit$theta, mu = mu, lower.tail = FALSE) + stats::dnbinom(x = S4Vectors::mcols(gi)$counts[D.eligible], 
                 size = fit$theta, mu = mu)))
         }
         qvalues <- stats::p.adjust(pvalues, method = "fdr")
-        mcols(gi_list[[chrom]])$pvalue[D.eligible] <- pvalues
-        mcols(gi_list[[chrom]])$qvalue[D.eligible] <- qvalues
-        if (!is.null(model_filepath)) {
-            print(paste0("Exporting fit object to file for ", chrom))
-            fitpath <- path.expand(paste0(gsub("\\.rds$", "", model_filepath), "_Model-Fit_on_", chrom, ".rds"))
-            fitpathdir<-gsub("/[^/]+$", "",fitpath)
-            if (fitpathdir==fitpath){
-                fitpathdir<-gsub("\\[^\\]+$", "",fitpath)
-            }
-            if (fitpathdir==fitpath){
-                fitpathdir<-gsub("\\\\[^\\\\]+$", "",fitpath)
-            }
-            if (!fitpathdir==fitpath&!dir.exists(fitpathdir)){
-                dir.create(fitpathdir, showWarnings = FALSE, recursive = TRUE, mode = "0777")
-            }
-            saveRDS(fit, file = fitpath)
-        }
-        print(paste0("Chromosome ",chrom," complete."))
-    }
-    return(gi_list)
+        S4Vectors::mcols(gi)$pvalue[D.eligible] <- pvalues
+        S4Vectors::mcols(gi)$qvalue[D.eligible] <- qvalues
+    print(paste0("Chromosome ",as.character(GenomicRanges::seqnames(gi@regions[1,]))," complete."))
+    return(gi)
 }

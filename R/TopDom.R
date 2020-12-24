@@ -1,4 +1,4 @@
-#'TopDom.R
+#'TopDom
 #'
 #'Adapted version of the stable legacy TopDom package 
 #'version 0.0.2 (no longer on CRAN or Bioconductor) 

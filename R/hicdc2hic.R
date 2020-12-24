@@ -11,7 +11,7 @@
 #'@param gi_list List of \code{GenomicInteractions} objects where each object
 #'named with chromosomes contains intra-chromosomal interaction information
 #'(minimally containing counts and genomic distance in \code{mcols(gi_list)}---
-#'see \code{?gi.list.validate} for a detailed explanation of valid
+#'see \code{?gi_list_validate} for a detailed explanation of valid
 #'\code{gi_list} instances).
 #'@param hicfile the path to the .hic file
 #'@param mode What to put to the .hic file
@@ -27,8 +27,8 @@
 #'@return path of the .hic file.
 #'@examples 
 #'outdir<-paste0(tempdir(check=TRUE),'/')
-#'gi_list<-generate.binned.gi.list(50e3,chrs='chr22')
-#'gi_list<-add.hic.counts(gi_list,
+#'gi_list<-generate_binned_gi_list(50e3,chrs='chr22')
+#'gi_list<-add_hic_counts(gi_list,
 #'hic_path=system.file("extdata", "GSE63525_HMEC_combined_example.hic",
 #' package = "HiCDCPlus"))
 #'hicdc2hic(gi_list,hicfile=paste0(outdir,'out.hic'),
@@ -37,12 +37,12 @@
 
 hicdc2hic <- function(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ver = "hg19") {
     options(scipen = 9999)
-    gi.list.validate(gi_list)
-    binsize<-gi.list.binsize.detect(gi_list)
+    gi_list_validate(gi_list)
+    binsize<-gi_list_binsize_detect(gi_list)
     if (is.null(chrs)) 
         chrs <- names(gi_list)
     tmpfile <- paste0(base::tempfile(), ".txt")
-    gi.list.write(gi_list, tmpfile, columns = "minimal_plus_score", score = mode)
+    gi_list_write(gi_list, tmpfile, columns = "minimal_plus_score", score = mode)
     #generate path to the file if not exists
     hicdc2hicoutput <- path.expand(hicfile)
     hicdc2hicoutputdir<-gsub("/[^/]+$", "",hicdc2hicoutput)

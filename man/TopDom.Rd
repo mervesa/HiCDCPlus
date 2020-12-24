@@ -2,7 +2,7 @@
 % Please edit documentation in R/TopDom.R
 \name{TopDom}
 \alias{TopDom}
-\title{TopDom.R}
+\title{TopDom}
 \usage{
 TopDom(matrix.file, window.size = 5, outFile = NULL, statFilter = TRUE)
 }

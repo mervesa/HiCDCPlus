@@ -485,7 +485,6 @@ vector<double> readNormalizationVector(ifstream& fin, indexEntry entry) {
 //' 
 //' Usage: straw <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG> <binsize>
 //' 
-//' @useDynLib HiCDCPlus, .registration = TRUE
 //' @importFrom Rcpp sourceCpp
 //' @param norm Normalization to apply. Must be one of NONE/VC/VC_SQRT/KR.
 //'     VC is vanilla coverage, VC_SQRT is square root of vanilla coverage,

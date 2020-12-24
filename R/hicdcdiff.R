@@ -1,4 +1,4 @@
-#' hicdcdiff.R
+#' hicdcdiff
 #'
 #'This function calculates differential interactions for a
 #'set of chromosomes across conditions and replicates. You need to install
@@ -6,7 +6,7 @@
 #'@importFrom dplyr %>%
 #'@importFrom rlang .data
 #'@param input_paths a list with names as condition names and values
-#'as paths to \code{gi_list} RDS objects (see \code{?gi.list.validate}
+#'as paths to \code{gi_list} RDS objects (see \code{?gi_list_validate}
 #'for a detailed explanation of valid \code{gi_list} instances) 
 #'saved with \code{saveRDS} or
 #'paths to .hic files for each replicate. e.g.,\code{list(
@@ -109,12 +109,12 @@ hicdcdiff <- function(input_paths, filter_file, output_path, bin_type = "Bins-un
                 prefix <- input_paths[[cond]][i]
                 if (!grepl("\\.hic$", prefix, ignore.case = TRUE)){
                 if (is.list(prefix)&methods::is(prefix[[1]], "GInteractions")){
-                    gi.list.validate(prefix)
+                    gi_list_validate(prefix)
                     normfac_add <- prefix[[chrom]]
                     rm(prefix)
                 } else {
-                gi_list <- gi.list.read(path.expand(prefix))
-                gi.list.validate(gi_list)
+                gi_list <- gi_list_read(path.expand(prefix))
+                gi_list_validate(gi_list)
                 normfac_add <- gi_list[[chrom]]
                 rm(gi_list)
                 }
@@ -132,11 +132,11 @@ hicdcdiff <- function(input_paths, filter_file, output_path, bin_type = "Bins-un
                                 tryCatch(straw(norm = "NONE", fn = path.expand(prefix), bs = binsize, ch1 = chr, ch2 = chr, 
                                                u = "BP"),
                                          error=function(e){
-                                             straw.dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="BP")   
+                                             straw_dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="BP")   
                                          })
                             })
                     }else{
-                        normfac_add<-straw.dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="BP")   
+                        normfac_add<-straw_dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="BP")   
                         gc(reset=TRUE,full=TRUE)
                     }
                     } else {
@@ -148,11 +148,11 @@ hicdcdiff <- function(input_paths, filter_file, output_path, bin_type = "Bins-un
                             tryCatch(straw(norm = "NONE", fn = path.expand(prefix), bs = binsize, ch1 = chr, ch2 = chr, 
                                     u = "FRAG"),
                                     error=function(e){
-                                         straw.dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="FRAG")   
+                                         straw_dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="FRAG")   
                                      })
                         })
                     }else{
-                        normfac_add<-straw.dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="FRAG")   
+                        normfac_add<-straw_dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="FRAG")   
                         gc(reset=TRUE,full=TRUE)
                     }
                     }

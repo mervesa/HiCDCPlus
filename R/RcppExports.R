@@ -8,7 +8,6 @@
 #' 
 #' Usage: straw <NONE/VC/VC_SQRT/KR> <hicFile(s)> <chr1>[:x1:x2] <chr2>[:y1:y2] <BP/FRAG> <binsize>
 #' 
-#' @useDynLib HiCDCPlus, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
 #' @param norm Normalization to apply. Must be one of NONE/VC/VC_SQRT/KR.
 #'     VC is vanilla coverage, VC_SQRT is square root of vanilla coverage,
@@ -24,6 +23,6 @@
 #'     100, 50, 20, 5, 2, 1>.
 #' @return Data.frame of a sparse matrix of data from hic file. x,y,counts
 straw <- function(norm, fn, ch1, ch2, u, bs) {
-    .Call(`_HiCDCPlus_straw`, norm, fn, ch1, ch2, u, bs)
+    .Call('_HiCDCPlus_straw', PACKAGE = 'HiCDCPlus', norm, fn, ch1, ch2, u, bs)
 }
 
