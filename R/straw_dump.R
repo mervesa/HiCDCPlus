@@ -30,7 +30,7 @@ straw_dump<-function(norm,fn,ch1,ch2,u,bs){
     if(!file.exists(jarpath)) {
     if(.Platform$OS.type=="windows"){
     utils::download.file(url='https://s3.amazonaws.com/hicfiles.tc4ga.com/public/juicer/juicer_tools_1.22.01.jar',
-        destfile=jarpath,quiet=TRUE, mode="wb", method="wininet")
+        destfile=jarpath,quiet=TRUE, mode="wb", method=as.character(ifelse(capabilities("libcurl"),"libcurl","wininet")))
     } else {
     utils::download.file(url='https://s3.amazonaws.com/hicfiles.tc4ga.com/public/juicer/juicer_tools_1.22.01.jar',
         destfile=jarpath,quiet=TRUE)
