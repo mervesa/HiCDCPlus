@@ -282,10 +282,10 @@ HiCDCPlus_chr <- function(gi, covariates = NULL, distance_type = "spline", model
 
         # filter into defined covariate rows
         if ('len'%in%(colnames(S4Vectors::mcols(gi)))){
-            gi<-gi[S4Vectors::mcols(gi)$len>0]
+            gi<-gi[S4Vectors::mcols(gi)$len!=0]
         }
         if ('width'%in%(colnames(S4Vectors::mcols(gi)))){
-            gi<-gi[S4Vectors::mcols(gi)$width>0]
+            gi<-gi[S4Vectors::mcols(gi)$width!=0]
         }
         # get distance eligible row indices
         D.eligible <- S4Vectors::mcols(gi)$D >= Dmin & S4Vectors::mcols(gi)$D <= Dmax

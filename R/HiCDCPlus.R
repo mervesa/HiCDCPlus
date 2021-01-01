@@ -301,10 +301,10 @@ HiCDCPlus <- function(gi_list, covariates = NULL, chrs = NULL, distance_type = "
     for (chrom in chrs) {
         # filter into defined covariate rows
         if ('len'%in%(colnames(mcols(gi_list[[chrom]])))){
-            gi_list[[chrom]]<-gi_list[[chrom]][mcols(gi_list[[chrom]])$len>0]
+            gi_list[[chrom]]<-gi_list[[chrom]][mcols(gi_list[[chrom]])$len!=0]
         }
         if ('width'%in%(colnames(mcols(gi_list[[chrom]])))){
-            gi_list[[chrom]]<-gi_list[[chrom]][mcols(gi_list[[chrom]])$width>0]
+            gi_list[[chrom]]<-gi_list[[chrom]][mcols(gi_list[[chrom]])$width!=0]
         }
         #new.x <- data.frame(mcols(gi_list[[chrom]]), stringsAsFactors = FALSE) %>% dplyr::filter(.data$D >= Dmin & .data$D <= Dmax)
         # get distance eligible row indices
