@@ -17,7 +17,7 @@
 #'just distance and counts (and \code{HiCDCPlus} result columns
 #''qvalue','pvalue','mu',and 'sdev', if exists; see \code{?HiCDCPlus})
 #'information, 'minimal_plus_features', which is
-# distance, counts, and other calculated 2D features,
+#' distance, counts, and other calculated 2D features,
 #''minimal_plus_score', which generates a .hic pre compatible text file,
 #'or 'all', which is
 #'distance, counts, calculated 2D features, as well as all 1D features.

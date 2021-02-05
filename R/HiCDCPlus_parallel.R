@@ -41,6 +41,9 @@
 #'@param ssize Distance stratified sampling size. Can decrease for
 #' large chromosomes. Increase recommended if
 #' model fails to converge. Defaults to 0.01.
+#'@param splineknotting Spline knotting strategy. Either "uniform", uniformly
+#'spaced in distance, or placed based on distance distribution of counts 
+#'"count-based" (i.e., more closely spaced where counts are more dense).
 #'@param ncore Number of cores to parallelize. Defaults to 
 #'\code{parallel::detectCores()-1}.
 #'@return A valid \code{gi_list} instance with additional \code{mcols(.)} for
@@ -55,7 +58,7 @@
 #'@export
 
 HiCDCPlus_parallel <- function(gi_list, covariates = NULL, chrs = NULL, distance_type = "spline", model_distribution = "nb", binned = TRUE, 
-    df = 6, Dmin = 0, Dmax = 2e+06, ssize = 0.01, ncore=NULL) {
+    df = 6, Dmin = 0, Dmax = 2e+06, ssize = 0.01, splineknotting = "uniform", ncore=NULL) {
     options(scipen = 9999, digits = 4)
     gi_list_validate(gi_list)
     if (is.null(chrs)) 
@@ -80,7 +83,8 @@ HiCDCPlus_parallel <- function(gi_list, covariates = NULL, chrs = NULL, distance
                          df=df,
                          Dmin=Dmin,
                          Dmax=Dmax,
-                         ssize=ssize)
+                         ssize=ssize,
+                         splineknotting = splineknotting)
     parallel::stopCluster(cl)
     return(gi_list)
 }

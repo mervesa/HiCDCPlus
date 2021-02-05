@@ -15,6 +15,7 @@ HiCDCPlus_parallel(
   Dmin = 0,
   Dmax = 2e+06,
   ssize = 0.01,
+  splineknotting = "uniform",
   ncore = NULL
 )
 }
@@ -59,6 +60,10 @@ defaults to 2e6 or maximum in the data; whichever is minimum.}
 \item{ssize}{Distance stratified sampling size. Can decrease for
 large chromosomes. Increase recommended if
 model fails to converge. Defaults to 0.01.}
+
+\item{splineknotting}{Spline knotting strategy. Either "uniform", uniformly
+spaced in distance, or placed based on distance distribution of counts 
+"count-based" (i.e., more closely spaced where counts are more dense).}
 
 \item{ncore}{Number of cores to parallelize. Defaults to 
 \code{parallel::detectCores()-1}.}

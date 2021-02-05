@@ -40,7 +40,7 @@ straw_dump<-function(norm,fn,ch1,ch2,u,bs){
     tmpfile <- path.expand(base::tempfile())
     chrflag1<-grepl("^chr",ch1)
     chrflag2<-grepl("^chr",ch1)
-    tryCatch({
+    df<-tryCatch({
         system2("java", args = c("-Xmx8g", "-jar", path.expand(jarpath), "dump",
                                  "observed", 
                                  norm,
@@ -50,7 +50,7 @@ straw_dump<-function(norm,fn,ch1,ch2,u,bs){
                                  u,
                                  bs,
                                  tmpfile))
-        df<-as.data.frame(data.table::fread(tmpfile))},
+        as.data.frame(data.table::fread(tmpfile))},
         error=function(e){
             system2("java", args = c("-Xmx8g", "-jar", path.expand(jarpath), "dump",
                                      "observed", 
@@ -61,7 +61,7 @@ straw_dump<-function(norm,fn,ch1,ch2,u,bs){
                                      u,
                                      bs,
                                      tmpfile))
-            df<-as.data.frame(data.table::fread(tmpfile))
+            as.data.frame(data.table::fread(tmpfile))
         })
     colnames(df)<-c('x','y','counts')
     system2("rm", args = tmpfile)

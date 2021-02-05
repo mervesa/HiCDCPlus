@@ -23,6 +23,6 @@
 #'     100, 50, 20, 5, 2, 1>.
 #' @return Data.frame of a sparse matrix of data from hic file. x,y,counts
 straw <- function(norm, fn, ch1, ch2, u, bs) {
-    .Call('_HiCDCPlus_straw', PACKAGE = 'HiCDCPlus', norm, fn, ch1, ch2, u, bs)
+    .Call(`_HiCDCPlus_straw`, norm, fn, ch1, ch2, u, bs)
 }
 
