@@ -160,7 +160,7 @@ construct_features(output_path=paste0(outdir,"/hg38_50kb_GATC"),
                    gen="Hsapiens",gen_ver="hg38",
                    sig="GATC",bin_type="Bins-uniform",
                    binsize=50000,
-                   chrs=c("chr21","chr22"))
+                   chrs=c("chr22"))
 #add .hic counts
 hicfile_paths<-c(
 system.file("extdata", "GSE131651_NSD2_LOW_arima_example.hic", package = "HiCDCPlus"),
@@ -208,6 +208,7 @@ paste0(outdir,'/GSE131651_NTKOCTCF_new_example.txt.gz'))),
 filter_file=paste0(outdir,'/GSE131651_analysis_indices.txt.gz'),
 output_path=paste0(outdir,'/diff_analysis_example/'),
 fitType = 'mean',
+chrs = 'chr22',
 binsize=50000,
 diagnostics=TRUE)
 #Check the generated plots as well as DESeq2 results
