@@ -52,7 +52,7 @@ data.table::fwrite(sub_mat, tmpfile, sep="\t",
                    col.names=FALSE, row.names=FALSE,quote=FALSE)
 outfile<-NULL
 if (file_out) outfile<-path.expand(paste0(fpath, "_", chr))
-out[[chrom]]<-TopDom(matrix.file=tmpfile,
+out[[chrom]]<-.TopDom(matrix.file=tmpfile,
              window.size=5, outFile=outfile)
 system2("rm", args = path.expand(tmpfile))
 }

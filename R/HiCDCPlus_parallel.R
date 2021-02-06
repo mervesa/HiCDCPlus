@@ -61,8 +61,7 @@ HiCDCPlus_parallel <- function(gi_list, covariates = NULL, chrs = NULL, distance
     df = 6, Dmin = 0, Dmax = 2e+06, ssize = 0.01, splineknotting = "uniform", ncore=NULL) {
     options(scipen = 9999, digits = 4)
     gi_list_validate(gi_list)
-    if (is.null(chrs)) 
-        chrs <- names(gi_list)
+    if (is.null(chrs)) chrs <- names(gi_list)
     # check if D and counts exist on each chromosome
     if (!(all(vapply(gi_list, function(x) sum(colnames(S4Vectors::mcols(x)) %in% c("counts", "D")) == 2, TRUE)))) {
         stop("Some gi_list elements do not contain pairwise distances D
@@ -84,7 +83,8 @@ HiCDCPlus_parallel <- function(gi_list, covariates = NULL, chrs = NULL, distance
                          Dmin=Dmin,
                          Dmax=Dmax,
                          ssize=ssize,
-                         splineknotting = splineknotting)
+                         splineknotting = splineknotting,
+                         model_filepath = NULL)
     parallel::stopCluster(cl)
     return(gi_list)
 }

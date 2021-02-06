@@ -14,7 +14,8 @@ HiCDCPlus_chr(
   Dmin = 0,
   Dmax = 2e+06,
   ssize = 0.01,
-  splineknotting = "uniform"
+  splineknotting = "uniform",
+  model_filepath = NULL
 )
 }
 \arguments{
@@ -55,10 +56,13 @@ model fails to converge. Defaults to 0.01.}
 \item{splineknotting}{Spline knotting strategy. Either "uniform", uniformly
 spaced in distance, or placed based on distance distribution of counts 
 "count-based" (i.e., more closely spaced where counts are more dense).}
+
+\item{model_filepath}{Outputs fitted HiC-DC model object as an .rds
+file with chromosome name indicatd on it. Defaults to NULL (no output).}
 }
 \value{
-A valid \code{gi_list} instance with additional \code{mcols(.)} for
-each chromosome: pvalue': significance \emph{P}-value, 'qvalue': FDR 
+A valid \code{gi} instance with additional \code{mcols(.)}: 
+pvalue': significance \emph{P}-value, 'qvalue': FDR 
 corrected \emph{P}-value, mu': expected counts, 'sdev': modeled standard
 deviation of expected counts.
 }

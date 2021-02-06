@@ -2,7 +2,7 @@
 
 Merve Sahin
 
-01/01/2021
+02/05/2021
 
  A necessary task in the analysis of HiC or HiChIP count data is the detection of statistically significant and differential genomic interactions. 
   The count data are available as a table which reports, with regions typically as genomic regions binned uniformly or across restriction enzyme fragments, the number of interactions between pairs of genomic regions. The package HiCDCPlus

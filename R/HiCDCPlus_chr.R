@@ -38,8 +38,10 @@
 #'@param splineknotting Spline knotting strategy. Either "uniform", uniformly
 #'spaced in distance, or placed based on distance distribution of counts 
 #'"count-based" (i.e., more closely spaced where counts are more dense).
-#'@return A valid \code{gi_list} instance with additional \code{mcols(.)} for
-#'each chromosome: pvalue': significance \emph{P}-value, 'qvalue': FDR 
+#'@param model_filepath Outputs fitted HiC-DC model object as an .rds
+#'file with chromosome name indicatd on it. Defaults to NULL (no output).
+#'@return A valid \code{gi} instance with additional \code{mcols(.)}: 
+#'pvalue': significance \emph{P}-value, 'qvalue': FDR 
 #'corrected \emph{P}-value, mu': expected counts, 'sdev': modeled standard
 #'deviation of expected counts.
 #'@examples gi_list<-generate_binned_gi_list(50e3,chrs='chr22')
@@ -50,7 +52,7 @@
 #'@export
 
 HiCDCPlus_chr <- function(gi, covariates = NULL, distance_type = "spline", model_distribution = "nb", binned = TRUE, 
-    df = 6, Dmin = 0, Dmax = 2e+06, ssize = 0.01, splineknotting = "uniform") {
+    df = 6, Dmin = 0, Dmax = 2e+06, ssize = 0.01, splineknotting = "uniform", model_filepath=NULL) {
     options(scipen = 9999, digits = 4)
     # remove logD, pvalue, qvalue, mu and sdev if they exist
     col_rem <- names(S4Vectors::mcols(gi))
@@ -67,319 +69,9 @@ HiCDCPlus_chr <- function(gi, covariates = NULL, distance_type = "spline", model
         if (length(covariates) == 0) 
             covariates <- NULL
     }
-    
-    
-    #validations done load spline defining functions
-    weighted.quantile <- function(x, w, num) {
-        ord <- order(x)
-        w <- w[ord]
-        x <- x[ord]
-        w.ord <- cumsum(w) / sum(w)
-        index <- 1:length(x)
-        quantiles<-numeric(num)
-        for (ix in 1:num){
-            prob<-ix/(num+1)
-            if(min(w.ord) > prob) {
-                lower.k.quant <- 1
-            } else {
-                lower.k.quant <- max(index[w.ord <= prob])
-            }
-            upper.k.quant <- min(index[w.ord > prob])
-            if(w.ord[lower.k.quant] < prob) {
-                quantiles[ix]<-x[upper.k.quant]
-                next
-            } else {
-                quantiles[ix]<-(w[lower.k.quant] * x[lower.k.quant] +
-                                    w[upper.k.quant] * x[upper.k.quant]) /
-                    (w[lower.k.quant] + w[upper.k.quant])
-                next
-            }
-        }
-        quantiles<-quantiles[!duplicated(quantiles)]
-        return(quantiles)
-    }
-    
-    # load helper functions outlier removal functions
-    remove_outliers_hurdle <- function(dat, mod) {
-        mu <- suppressWarnings(stats::predict(mod, newdata = dat, dispersion = mod$theta^(-1), type = "count"))
-        dat <- dat %>% dplyr::mutate(phat_count = stats::dnbinom(x = 0, size = mod$theta, mu = mu))
-        dat <- dat %>% dplyr::mutate(phat = 1 - (1 - .data$phat_count) * suppressWarnings(stats::predict(mod, newdata = dat, dispersion = mod$theta^(-1), 
-            type = "zero")))
-        dat <- dat %>% dplyr::mutate(pvals = ifelse(.data$counts == 0, 1, (1 - .data$phat)/(1 - .data$phat_count) * (stats::pnbinom(q = .data$counts, 
-            size = mod$theta, mu = mu, lower.tail = FALSE) + stats::dnbinom(x = .data$counts, size = mod$theta, mu = mu))))
-        new.dat <- dat %>% dplyr::filter(.data$pvals >= 0.025) %>% dplyr::select(-.data$phat_count, -.data$phat, -.data$pvals)
-        return(new.dat)
-    }
-    
-    remove_outliers_nb <- function(dat, mod) {
-        mu <- suppressWarnings(stats::predict(mod, newdata = dat, type = "response"))
-        dat <- dat %>% dplyr::mutate(q = stats::qnbinom(0.975, size = mod$theta, mu = mu))
-        new.dat <- dat %>% dplyr::filter(.data$counts <= .data$q) %>% dplyr::select(-.data$q)
-        return(new.dat)
-    }
-    
-    remove_outliers_nb_vardisp <- function(dat, covariates, dispersion_DF, mod) {
-        dispersionfunction <- function(DF) {
-            fit <- stats::lm(1/(theta)~stats::poly(D,degree = 3),data=DF)
-            return(function(x) base::pmax(suppressWarnings(stats::predict(fit, newdata=data.frame(D=x))), 0.001))
-        }
-        alpha <- dispersionfunction(dispersion_DF)
-        sizes <- 1/alpha(dat$D)
-        logmu.coefs <- mod@coef[grep("logmu+", names(mod@coef))]
-        if (distance_type == "spline") {
-            if (!is.null(covariates)) {
-                if (splineknotting == "uniform"){
-                mus <- exp(logmu.coefs[1] + cbind(vapply(covariates, function(x) dat[, x], rep(8, nrow(dat))), splines::bs(dat$D, 
-                df = df, Boundary.knots = bdpts)) %*% logmu.coefs[2:length(logmu.coefs)])}
-                else{
-                    mus <- exp(logmu.coefs[1] + cbind(vapply(covariates, function(x) dat[, x], rep(8, nrow(dat))), splines::bs(dat$D, 
-                    knots = knots, Boundary.knots = bdpts)) %*% logmu.coefs[2:length(logmu.coefs)])                   
-                }
-            } else {
-                if (splineknotting == "uniform"){
-                mus <- exp(logmu.coefs[1] + cbind(splines::bs(dat$D, df = df, Boundary.knots = bdpts)) %*% logmu.coefs[2:length(logmu.coefs)])
-                }else{
-                mus <- exp(logmu.coefs[1] + cbind(splines::bs(dat$D, knots = knots, Boundary.knots = bdpts)) %*% logmu.coefs[2:length(logmu.coefs)])
-                }
-            }
-        } else {
-            if (!is.null(covariates)) {
-                mus <- exp(logmu.coefs[1] + cbind(vapply(covariates, function(x) dat[, x], rep(8, nrow(dat))), dat$logD) %*% 
-                logmu.coefs[2:length(logmu.coefs)])
-            } else {
-                mus <- exp(logmu.coefs[1] + cbind(dat$logD) %*% logmu.coefs[2:length(logmu.coefs)])
-            }
-        }
-        q <- stats::qnbinom(0.975, size = sizes, mu = mus)
-        counts <- dat$counts
-        counts[counts > q] <- NA
-        new.dat <- dat %>% dplyr::filter(!is.na(counts))
-        return(new.dat)
-    }
-    
-    
-    # glm.nb wrapper with poisson fallback if dispersion undetectable
-    glm.nb.trycatch <- function(model.formula, data) {
-        model <- tryCatch({
-            strip_glm(MASS::glm.nb(model.formula, data, model = FALSE, y = FALSE, x = FALSE))
-        }, error = function(e) {
-            temp.model <- strip_glm(stats::glm(model.formula, data, family = "poisson", model = FALSE, y = FALSE, x = FALSE))
-            temp.model$theta = 1e+16
-            return(temp.model)
-        })
-        return(model)
-    }
-    
-    GLM_nb <- function(data, df, knots, bdpts, covariates, distance_type) {
-        if (distance_type == "spline") {
-            if (splineknotting == "uniform"){
-                model.formula <- stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + splines::bs(D,df=", 
-                                                          df, ",Boundary.knots = c(", paste(bdpts, collapse = ","), "))"))
-            }else{
-                model.formula <- stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + splines::bs(D,knots=c(", 
-                                                          paste(knots, collapse = ","), "), Boundary.knots = c(", paste(bdpts, collapse = ","), "))"))                
-            }
-        } else {
-            model.formula <- stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + logD"))
-        }
-        # Remove outliers
-        mod <- glm.nb.trycatch(model.formula, data)
-        new.dat <- remove_outliers_nb(data, mod)
-        # Refit the model
-        mod <- glm.nb.trycatch(model.formula, new.dat)
-        return(mod)
-    }
-    
-    
-    GLM_nb_vardisp <- function(data, df, knots, bdpts, covariates, dispersion_DF, distance_type) {
-        dispersionfunction <- function(DF) {
-            fit <- stats::lm(1/(theta)~stats::poly(D,degree = 3),data=DF)
-            return(function(x) base::pmax(suppressWarnings(stats::predict(fit, newdata=data.frame(D=x))), 0.001))
-        }
-        alpha <- dispersionfunction(dispersion_DF)
-        data$sizes <- 1/alpha(data$D)
-        if (distance_type == "spline") {
-            if (!is.null(covariates)) {
-                if (splineknotting == "uniform"){
-                    model.formula <- stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + splines::bs(D,df=", 
-                                                              df, ",Boundary.knots = c(", paste(bdpts, collapse = ","), "))"))
-                } else {
-                    model.formula <- stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + splines::bs(D,knots=c(", 
-                                                              paste(knots, collapse = ","), "), Boundary.knots = c(", paste(bdpts, collapse = ","), "))"))                   
-                }
-            } else {
-                if (splineknotting == "uniform"){
-                    model.formula <- stats::as.formula(paste0("counts ~ splines::bs(D,df=", df, ",Boundary.knots = c(", paste(bdpts, 
-                                                                                                                              collapse = ","), "))"))
-                } else {
-                    model.formula <- stats::as.formula(paste0("counts ~ splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots = c(", paste(bdpts, 
-                                                                                                                                                               collapse = ","), "))"))                    
-                }
-            }
-            mod <- glm.nb.trycatch(model.formula, data)
-            start <- list(logmu = mod$coefficients)
-            if (splineknotting == "uniform"){
-                mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = data, start = start, parameters = list(stats::as.formula(paste0("logmu ~ ", 
-                                                                                                                                                           paste(covariates, collapse = " + "), " + splines::bs(D,df=", df, ",Boundary.knots = c(", paste(bdpts, collapse = ","), 
-                                                                                                                                                           "))"))), method = "BFGS")
-            } else {
-                mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = data, start = start, parameters = list(stats::as.formula(paste0("logmu ~ ", 
-                                                                                                                                                           paste(covariates, collapse = " + "), " + splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots = c(", paste(bdpts, collapse = ","), 
-                                                                                                                                                           "))"))), method = "BFGS")                
-            }
-        } else {
-            if (!is.null(covariates)) {
-                model.formula <- stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + logD"))
-            } else {
-                model.formula <- stats::as.formula(paste0("counts ~ logD"))
-            }
-            mod <- glm.nb.trycatch(model.formula, data)
-            start <- list(logmu = mod$coefficients)
-            if (!is.null(covariates)) {
-                mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = data, start = start, parameters = list(stats::as.formula(paste0("logmu ~", 
-                                                                                                                                                           paste(covariates, collapse = " + "), " + logD"))), method = "BFGS")
-            } else {
-                mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = data, start = start, parameters = list(stats::as.formula(paste0("logmu ~ logD"))), 
-                                   method = "BFGS")
-            }
-        }
-        # Remove outliers
-        new.dat <- remove_outliers_nb_vardisp(data, covariates, dispersion_DF, mod)
-        logmu.coefs <- mod@coef[grep("logmu+", names(mod@coef))]
-        start <- list(logmu = logmu.coefs)
-        new.dat$sizes <- 1/alpha(new.dat$D)
-        # Refit the model
-        if (distance_type == "spline") {
-            if (!is.null(covariates)) {
-                if (splineknotting == "uniform"){
-                    mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = new.dat, start = start, parameters = list(stats::as.formula(paste0("logmu ~ ", 
-                                                                                                                                                                  paste(covariates, collapse = " + "), " + splines::bs(D,df=", df, ",Boundary.knots = c(", paste(bdpts, collapse = ","), 
-                                                                                                                                                                  "))"))), method = "BFGS")
-                } else {
-                    mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = new.dat, start = start, parameters = list(stats::as.formula(paste0("logmu ~ ", 
-                                                                                                                                                                  paste(covariates, collapse = " + "), " + splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots = c(", paste(bdpts, collapse = ","), 
-                                                                                                                                                                  "))"))), method = "BFGS")                    
-                }
-            } else {
-                if (splineknotting == "uniform"){
-                    mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = new.dat, start = start, parameters = list(stats::as.formula(paste0("logmu ~  splines::bs(D,df=", 
-                                                                                                                                                                  df, ",Boundary.knots = c(", paste(bdpts, collapse = ","), "))"))), method = "BFGS")
-                } else {
-                    mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = new.dat, start = start, parameters = list(stats::as.formula(paste0("logmu ~  splines::bs(D,knots=c(", 
-                                                                                                                                                                  paste(knots, collapse = ","), "), Boundary.knots = c(", paste(bdpts, collapse = ","), "))"))), method = "BFGS")                    
-                }
-            }
-        } else {
-            if (!is.null(covariates)) {
-                mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = new.dat, start = start, parameters = list(stats::as.formula(paste0("logmu ~", 
-                                                                                                                                                              paste(covariates, collapse = " + "), " + logD"))), method = "BFGS")
-            } else {
-                mod <- bbmle::mle2(counts ~ dnbinom(mu = exp(logmu), size = sizes), data = new.dat, start = start, parameters = list(stats::as.formula(paste0("logmu ~ logD"))), 
-                                   method = "BFGS")
-            }
-        }
-        return(mod)
-    }
-    
-    GLM <- function(data, df, knots, bdpts, covariates, distance_type) {
-        if (distance_type == "spline") {
-            if (!is.null(covariates)) {
-                if (splineknotting == "uniform"){
-                    mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + splines::bs(D,df=", 
-                                                                           df, ",Boundary.knots = c(", paste(bdpts, collapse = ","), ")) | ", paste(covariates, collapse = " + "), 
-                                                                           " + splines::bs(D,df=", df, ",Boundary.knots =c(", paste(bdpts, collapse = ","), "))")), data = data, dist = "negbin", 
-                                                  model = FALSE, y = FALSE, x = FALSE))
-                } else {
-                    mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + splines::bs(D,knots=c(", 
-                                                                           paste(knots, collapse = ","), "), Boundary.knots = c(", paste(bdpts, collapse = ","), ")) | ", paste(covariates, collapse = " + "), 
-                                                                           " + splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots =c(", paste(bdpts, collapse = ","), "))")), data = data, dist = "negbin", 
-                                                  model = FALSE, y = FALSE, x = FALSE))                    
-                }
-            } else {
-                if (splineknotting == "uniform"){
-                    mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~ splines::bs(D,df=", df, ",Boundary.knots = c(", 
-                                                                           paste(bdpts, collapse = ","), ")) | splines::bs(D,df=", df, ",Boundary.knots =c(", paste(bdpts, collapse = ","), 
-                                                                           "))")), data = data, dist = "negbin", model = FALSE, y = FALSE, x = FALSE))
-                } else {
-                    mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~ splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots = c(", 
-                                                                           paste(bdpts, collapse = ","), ")) | splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots =c(", paste(bdpts, collapse = ","), 
-                                                                           "))")), data = data, dist = "negbin", model = FALSE, y = FALSE, x = FALSE))                   
-                }
-            }
-        } else {
-            if (!is.null(covariates)) {
-                mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + logD | ", 
-                                                                       paste(covariates, collapse = " + "), " + logD")), data = data, dist = "negbin", model = FALSE, y = FALSE, x = FALSE))
-            } else {
-                mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~ logD | logD")), data = data, dist = "negbin", 
-                                              model = FALSE, y = FALSE, x = FALSE))
-            }
-        }
-        # Remove outliers
-        new.dat <- remove_outliers_hurdle(data, mod)
-        # Refit the model
-        if (distance_type == "spline") {
-            if (!is.null(covariates)) {
-                if (splineknotting == "uniform"){
-                    mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + splines::bs(D,df=", 
-                                                                           df, ",Boundary.knots = c(", paste(bdpts, collapse = ","), ")) | ", paste(covariates, collapse = " + "), 
-                                                                           " + splines::bs(D,df=", df, ",Boundary.knots =c(", paste(bdpts, collapse = ","), "))")), data = new.dat, 
-                                                  dist = "negbin", model = FALSE, y = FALSE, x = FALSE))
-                } else {
-                    mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + splines::bs(D,knots=c(", 
-                                                                           paste(knots, collapse = ","), "), Boundary.knots = c(", paste(bdpts, collapse = ","), ")) | ", paste(covariates, collapse = " + "), 
-                                                                           " + splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots =c(", paste(bdpts, collapse = ","), "))")), data = new.dat, 
-                                                  dist = "negbin", model = FALSE, y = FALSE, x = FALSE))                   
-                }
-            } else {
-                if (splineknotting == "uniform"){
-                    mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~ splines::bs(D,df=", df, ",Boundary.knots = c(", 
-                                                                           paste(bdpts, collapse = ","), ")) |  splines::bs(D,df=", df, ",Boundary.knots =c(", paste(bdpts, collapse = ","), 
-                                                                           "))")), data = new.dat, dist = "negbin", model = FALSE, y = FALSE, x = FALSE))
-                } else {
-                    mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~ splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots = c(", 
-                                                                           paste(bdpts, collapse = ","), ")) |  splines::bs(D,knots=c(", paste(knots, collapse = ","), "), Boundary.knots =c(", paste(bdpts, collapse = ","), 
-                                                                           "))")), data = new.dat, dist = "negbin", model = FALSE, y = FALSE, x = FALSE))                    
-                }
-            }
-        } else {
-            if (!is.null(covariates)) {
-                mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~", paste(covariates, collapse = " + "), " + logD | ", 
-                                                                       paste(covariates, collapse = " + "), " + logD")), data = new.dat, dist = "negbin", model = FALSE, y = FALSE, 
-                                              x = FALSE))
-            } else {
-                mod <- strip_glm(pscl::hurdle(stats::as.formula(paste0("counts ~ logD | logD")), data = new.dat, dist = "negbin", 
-                                              model = FALSE, y = FALSE, x = FALSE))
-            }
-        }
-        return(mod)
-    }
-    
-    strip_glm = function(m1) {
-        m1$data <- NULL
-        m1$y <- NULL
-        m1$linear.predictors <- NULL
-        m1$weights <- NULL
-        m1$fitted.values <- NULL
-        m1$model <- NULL
-        m1$prior.weights <- NULL
-        m1$residuals <- NULL
-        m1$effects <- NULL
-        m1$qr$qr <- NULL
-        m1$optim <- NULL
-        m1$start <- NULL
-        return(m1)
-    }
-    
-    gm_mean = function(x, na.rm = TRUE) {
-        exp(sum(log(x[x > 0]), na.rm = na.rm)/length(x))
-    }
-    
-    dispersionfunction <- function(DF) {
-        fit <- stats::lm(1/(theta)~stats::poly(D,degree = 3),data=DF)
-        return(function(x) base::pmax(suppressWarnings(stats::predict(fit, newdata=data.frame(D=x))), 0.001))
-    }
-    # main routine for the function
+    if (!distance_type %in% c("spline","log")) stop("Valid options for distance_type are 'spline' or 'log'. See ?HiCDCPlus_chr for details.")
+    if (!model_distribution %in% c("nb","nb_hurdle", "nb_vardisp")) stop("Valid options for model_distribution are 'nb','nb_hurdle', or 'nb_vardisp'. See ?HiCDCPlus_chr for details.")
+    if (!splineknotting %in% c("uniform","count-based")) stop("Valid options for splineknotting are 'uniform' or 'count-based'. See ?HiCDCPlus_chr for details.")
 
         # filter into defined covariate rows
         if ('len'%in%(colnames(S4Vectors::mcols(gi)))){
@@ -396,7 +88,7 @@ HiCDCPlus_chr <- function(gi, covariates = NULL, distance_type = "spline", model
                 knots <- NULL
             } else {
                 countsums<-as.data.frame(S4Vectors::mcols(gi)[D.eligible,])%>%dplyr::group_by(.data$D)%>%dplyr::summarize(counts=sum(.data$counts))%>%dplyr::filter(.data$counts>0)
-                knots<-weighted.quantile(x=countsums$D,w=countsums$counts,num=df-3)
+                knots<-.weighted_quantile(x=countsums$D,w=countsums$counts,num=df-3)
                 knots<-knots[!knots%in%bdpts]
             }
         } else {
@@ -419,24 +111,20 @@ HiCDCPlus_chr <- function(gi, covariates = NULL, distance_type = "spline", model
                     knots_x <- NULL
                 } else {
                     countsums_x<-as.data.frame(S4Vectors::mcols(gi)[dat_x_ix,])%>%dplyr::group_by(.data$D)%>%dplyr::summarize(counts=sum(.data$counts))%>%dplyr::filter(.data$counts>0)
-                    knots_x<-weighted.quantile(x=countsums_x$D,w=countsums_x$counts,num=df-3)
+                    knots_x<-.weighted_quantile(x=countsums_x$D,w=countsums_x$counts,num=df-3)
                     knots_x<-knots_x[!knots_x%in%bdpts_x]
                 }
-                fit <- suppressWarnings(GLM_nb(as.data.frame(S4Vectors::mcols(gi)[dat_x_ix,]), df, knots_x, bdpts_x, covariates, distance_type = distance_type))
+                fit <- suppressWarnings(.GLM(data=as.data.frame(S4Vectors::mcols(gi)[dat_x_ix,]), df=df, knots=knots_x, bdpts=bdpts_x, covariates=covariates, distance_type = distance_type, model_distribution="nb", splineknotting=splineknotting))
                 dt <- data.frame(D = mean(S4Vectors::mcols(gi)[dat_x_ix,]$D), theta = fit$theta)
                 dispersion_DF <- dplyr::bind_rows(dispersion_DF, dt)
             }
-            alpha <- dispersionfunction(dispersion_DF)
+            alpha <- .dispersionfunction(dispersion_DF)
             rm(dat, dat_x_ix, bdpts_x, knots_x, fit, dt, zeroPairedBins_ix, countPairedBins_ix)
         }
         # get a stratified sample for modeling
         dat <- as.data.frame(S4Vectors::mcols(gi))%>%dplyr::select(.data$D,.data$counts)
         if (binned) {
-            get.range <- function(gi) {
-                return(stats::quantile(GenomicRanges::end(InteractionSet::regions(gi)) - GenomicRanges::start(InteractionSet::regions(gi)), 
-                                       probs = c(0.025, 0.975)))
-            }
-            binsize <- min(unique(get.range(gi)))
+            binsize <- .get_range(gi)
             dat<-dat%>%dplyr::mutate(D.range = findInterval(.data$D, seq(Dmin, to = Dmax, by = binsize), rightmost.closed = TRUE),
                                      ix=seq(nrow(dat)))
             bins.counts <- split((dat%>%dplyr::filter(.data$counts>0))$ix, (dat%>%dplyr::filter(.data$counts>0))$D.range)
@@ -456,12 +144,10 @@ HiCDCPlus_chr <- function(gi, covariates = NULL, distance_type = "spline", model
         }
         gc()
         # fit the model on the sample
-        if (model_distribution == "nb") {
-            fit <- suppressWarnings(GLM_nb(dat, df, knots, bdpts, covariates, distance_type))
-        } else if (model_distribution == "nb_vardisp") {
-            fit <- suppressWarnings(GLM_nb_vardisp(dat, df, knots, bdpts, covariates, dispersion_DF, distance_type))
+        if (model_distribution %in% c("nb","nb_hurdle")) {
+            fit <- suppressWarnings(.GLM(data=dat, df=df, knots=knots, bdpts=bdpts, covariates=covariates, distance_type=distance_type, model_distribution=model_distribution, splineknotting=splineknotting))
         } else {
-            fit <- suppressWarnings(GLM(dat, df, knots, bdpts, covariates, distance_type))
+            fit <- suppressWarnings(.GLM(data=dat, df=df, knots=knots, bdpts=bdpts, covariates=covariates, distance_type=distance_type, model_distribution=model_distribution, splineknotting=splineknotting, dispersion_DF=dispersion_DF))
         }
         # add predictions
         S4Vectors::mcols(gi)$mu <- NA
@@ -545,6 +231,23 @@ HiCDCPlus_chr <- function(gi, covariates = NULL, distance_type = "spline", model
         qvalues <- stats::p.adjust(pvalues[D.eligible], method = "fdr")
         S4Vectors::mcols(gi)$pvalue[D.eligible] <- pvalues[D.eligible]
         S4Vectors::mcols(gi)$qvalue[D.eligible] <- qvalues
-    print(paste0("Chromosome ",as.character(GenomicRanges::seqnames(gi@regions[1,]))," complete."))
+        chrom=as.character(GenomicRanges::seqnames(gi@regions[1,]))
+        if (!is.null(model_filepath)) {
+            message("Exporting fit object to file")
+            fitpath <- path.expand(paste0(gsub("\\.rds$", "", model_filepath), "_Model-Fit_on_", chrom, ".rds"))
+            fitpathdir<-gsub("/[^/]+$", "",fitpath)
+            if (fitpathdir==fitpath){
+                fitpathdir<-gsub("\\[^\\]+$", "",fitpath)
+            }
+            if (fitpathdir==fitpath){
+                fitpathdir<-gsub("\\\\[^\\\\]+$", "",fitpath)
+            }
+            if (!fitpathdir==fitpath&!dir.exists(fitpathdir)){
+                dir.create(fitpathdir, showWarnings = FALSE, recursive = TRUE, mode = "0777")
+            }
+            saveRDS(fit, file = fitpath)
+        }
+    msg<-paste0("Chromosome ",chrom," complete.")
+    message(msg)
     return(gi)
 }

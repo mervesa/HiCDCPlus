@@ -98,162 +98,14 @@ hicdcdiff <- function(input_paths, filter_file, output_path, bin_type = "Bins-un
             stop("No column named 'chr' in filter_file.")
         chrs <- sort(unique(sigs$chr))
     }
-    
-    # This function prepares DESeq2 normalization factors and counts across conditions and replicates
-    readFiles <- function(cond, input_paths, sigs, chrom) {
-        retlist <- list()
-        normfac <- NULL
-        for (cond in conds) {
-            numrep <- length(input_paths[[cond]])
-            for (i in seq(1, numrep)) {
-                prefix <- input_paths[[cond]][i]
-                if (!grepl("\\.hic$", prefix, ignore.case = TRUE)){
-                if (is.list(prefix)&methods::is(prefix[[1]], "GInteractions")){
-                    gi_list_validate(prefix)
-                    normfac_add <- prefix[[chrom]]
-                    rm(prefix)
-                } else {
-                gi_list <- gi_list_read(path.expand(prefix))
-                gi_list_validate(gi_list)
-                normfac_add <- gi_list[[chrom]]
-                rm(gi_list)
-                }
-                normfac_add <- data.frame(chr = chrom, startI = BiocGenerics::start(InteractionSet::anchors(normfac_add)$first), 
-                    startJ = BiocGenerics::start(InteractionSet::anchors(normfac_add)$second), counts = mcols(normfac_add)$counts, 
-                    D = mcols(normfac_add)$D, stringsAsFactors = FALSE)
-                normfac_add <- normfac_add %>% dplyr::filter(.data$counts > 0)
-                } else if (grepl("\\.hic$", prefix, ignore.case = TRUE)) {
-                    if (bin_type == "Bins-uniform") {
-                    if (!.Platform$OS.type=="windows"){
-                    normfac_add <- tryCatch(
-                            straw(norm = "NONE", fn = path.expand(prefix), bs = binsize, ch1 = gsub("chr", "", chr), ch2 = gsub("chr", "", chr), 
-                                  u = "BP"),
-                            error=function(e){
-                                tryCatch(straw(norm = "NONE", fn = path.expand(prefix), bs = binsize, ch1 = chr, ch2 = chr, 
-                                               u = "BP"),
-                                         error=function(e){
-                                             straw_dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="BP")   
-                                         })
-                            })
-                    }else{
-                        normfac_add<-straw_dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="BP")   
-                        gc(reset=TRUE,full=TRUE)
-                    }
-                    } else {
-                    if (!.Platform$OS.type=="windows"){
-                    normfac_add <- tryCatch(
-                        straw(norm = "NONE", fn = path.expand(prefix), bs = binsize, ch1 = gsub("chr", "", chr), ch2 = gsub("chr", "", chr), 
-                             u = "FRAG"),
-                        error=function(e){
-                            tryCatch(straw(norm = "NONE", fn = path.expand(prefix), bs = binsize, ch1 = chr, ch2 = chr, 
-                                    u = "FRAG"),
-                                    error=function(e){
-                                         straw_dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="FRAG")   
-                                     })
-                        })
-                    }else{
-                        normfac_add<-straw_dump(norm = "NONE",fn=path.expand(prefix),bs=binsize,ch1=gsub("chr", "", chr),ch2=gsub("chr", "", chr),u="FRAG")   
-                        gc(reset=TRUE,full=TRUE)
-                    }
-                    }
-                    colnames(normfac_add) <- c("startI", "startJ", "counts")
-                    normfac_add <- normfac_add %>% dplyr::mutate(chr = chr, D = abs(.data$startI - .data$startJ))
-                } else {
-                    stop(paste0("File not found relating to ", prefix))
-                }
-                normfac_add <- normfac_add %>% dplyr::filter(.data$D >= Dmin & .data$D <= Dmax) %>% dplyr::mutate(Dband = as.numeric(cut(.data$D, 
-                breaks = dband, labels = seq(1, (length(dband) - 1), 1), include.lowest = TRUE))) %>% dplyr::select(.data$Dband, 
-                .data$chr, .data$startI, .data$startJ, .data$counts)
-                # rename counts column
-                colnames(normfac_add)[colnames(normfac_add) %in% "counts"] <- paste0(cond, ".", i)
-                if (is.null(normfac)) {
-                normfac <- normfac_add
-                } else {
-                # join counts across conditions and replicates
-                normfac <- dplyr::inner_join(normfac, normfac_add)
-                }
-            }
-        }
-        # calculate geometric mean of all count columns
-        countcols <- colnames(normfac)[!colnames(normfac) %in% c("chr", "startI", "startJ", "Dband")]
-        normfac$geomean <- exp(rowMeans(log(normfac[countcols] + 0.5)))
-        # calculate factors: count/geometric mean
-        for (countcol in countcols) {
-            normfac[, paste0(countcol, ".fac")] <- (normfac[, countcol] + 0.5)/normfac$geomean
-        }
-        # calculate median factor by distance band and store it as normfac.final
-        countcols <- paste0(countcols, ".fac")
-        normfac.final <- normfac %>% dplyr::group_by(.data$Dband) %>% dplyr::summarise_at(.vars = countcols, .funs = stats::median)
-        normfac.final$geomean <- exp(rowMeans(log(normfac.final[countcols])))
-        # join back with normfac with normfac.final columns .fac replaced with .norm and geomean removed
-        colnames(normfac.final) <- gsub(".fac", ".norm", colnames(normfac.final))
-        normfac <- dplyr::left_join(normfac, normfac.final %>% dplyr::select(-.data$geomean))
-        # significant bins to be filtered
-        sigbins <- sigs %>% dplyr::filter(.data$chr == chrom)
-        sigbins <- paste0(sigbins$startI, ":", sigbins$startJ)
-        retlist[["normfac"]] <- normfac
-        retlist[["normfac.final"]] <- normfac.final
-        retlist[["sigbins"]] <- sigbins
-        return(retlist)
-    }
-    
-    # This function plots normalization factors
-    plotFactors <- function(normfac.final, binsize, chr) {
-        plotpath <- path.expand(paste0(output_path, "sizefactors_", chr, ".pdf"))
-        plotpaths <- plotpath
-        plotpathdir<-gsub("/[^/]+$", "",plotpath)
-        if (plotpathdir==plotpath){
-            plotpathdir<-gsub("\\[^\\]+$", "",plotpath)
-        }
-        if (plotpathdir==plotpath){
-            plotpathdir<-gsub("\\\\[^\\\\]+$", "",plotpath)
-        }
-        if (!plotpathdir==plotpath&!dir.exists(plotpathdir)){
-            dir.create(plotpathdir, showWarnings = FALSE, recursive = TRUE, mode = "0777")
-        }
-        grDevices::pdf(plotpath)
-        graphics::par(mfrow = c(1, length(conds)))
-        for (cond in conds) {
-            numrep <- length(grep(paste0("^", cond, ".*norm$"), colnames(normfac.final)))
-            condn <- paste0(cond, ".1.norm")
-            num <- grep(condn, colnames(normfac.final))
-            graphics::plot(dband[normfac.final$Dband], normfac.final[[condn]], xlab = "distance", ylab = "norm factors", ylim = range(normfac.final[, 
-                num:(num + (numrep - 1))]), main = paste0(cond))
-            if (numrep > 1) {
-                for (i in seq(2, numrep, 1)) {
-                condn <- paste0(cond, ".", i, ".norm")
-                graphics::points(dband[normfac.final$Dband], normfac.final[[condn]], col = "red")
-                }
-            }
-        }
-        grDevices::dev.off()
-        plotpath <- path.expand(paste0(output_path, "geomean_sizefactors_", chr, ".pdf"))
-        plotpaths <- c(plotpaths, plotpath)
-        plotpathdir<-gsub("/[^/]+$", "",plotpath)
-        if (plotpathdir==plotpath){
-            plotpathdir<-gsub("\\[^\\]+$", "",plotpath)
-        }
-        if (plotpathdir==plotpath){
-            plotpathdir<-gsub("\\\\[^\\\\]+$", "",plotpath)
-        }
-        if (!plotpathdir==plotpath&!dir.exists(plotpathdir)){
-            dir.create(plotpathdir, showWarnings = FALSE, recursive = TRUE, mode = "0777")
-        }
-        grDevices::pdf(plotpath)
-        graphics::par(mfrow = c(1, 1))
-        graphics::plot(dband[normfac.final$Dband], normfac.final$geomean, xlab = "distance", ylab = "geometric mean")
-        grDevices::dev.off()
-        return(plotpaths)
-    }
-    
-    # Main function body iterating over set of chromosomes
+
     for (chr in chrs) {
         plotpaths_add <- NULL
         outputpaths_add <- NULL
         deseq2paths_add <- NULL
-        retlist <- readFiles(cond, input_paths, sigs, chr)
+        retlist <- .readDiffInputFiles(conds, input_paths, sigs, chr, Dmin, Dmax, dband, bin_type, binsize)
         if (diagnostics) {
-            plotpaths_add <- plotFactors(retlist[["normfac.final"]], binsize, chr)
+            plotpaths_add <- .plotNormalizationFactors(retlist[["normfac.final"]], binsize, chr, dband, conds, output_path)
         }
         countcols <- c()
         for (cond in conds) {
@@ -276,8 +128,14 @@ hicdcdiff <- function(input_paths, filter_file, output_path, bin_type = "Bins-un
         keep <- rownames(DESeq2::counts(dds)) %in% retlist[["sigbins"]]
         dds <- dds[keep, ]
         dds <- DESeq2::estimateDispersionsGeneEst(dds)
-        dds <- DESeq2::estimateDispersionsFit(dds, fitType = fitType)
-        DESeq2::dispersions(dds) <- GenomicRanges::mcols(dds)$dispFit
+        DESeq2::dispersions(dds) <- tryCatch({
+            dds <- DESeq2::estimateDispersionsFit(dds, fitType = fitType)
+            GenomicRanges::mcols(dds)$dispFit},
+            error=function(e) {
+                msg<-paste0("fitType failed to fit for ",chr,". Overriding with gene estimates")
+                message(msg)
+                return(mcols(dds)$dispGeneEst)
+            })
         dds <- DESeq2::nbinomWaldTest(dds)
         for (i in seq(1, length(conds) - 1, 1)) {
             for (j in seq(i + 1, length(conds), 1)) {

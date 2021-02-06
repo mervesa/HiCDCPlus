@@ -4,7 +4,14 @@
 \alias{hicdc2hic}
 \title{hicdc2hic}
 \usage{
-hicdc2hic(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ver = "hg19")
+hicdc2hic(
+  gi_list,
+  hicfile,
+  mode = "normcounts",
+  chrs = NULL,
+  gen_ver = "hg19",
+  memory = 8
+)
 }
 \arguments{
 \item{gi_list}{List of \code{GenomicInteractions} objects where each object
@@ -27,6 +34,8 @@ and 'raw' to pass-through 'raw counts. Defaults to 'normcounts'.}
 c('chr21','chr22'). Defaults to chromosomes in \code{gi_list}.}
 
 \item{gen_ver}{genomic assembly version: e.g., default \code{'hg19'}}
+
+\item{memory}{Java memory to generate .hic files. Defaults to 8. Up to 64 is recommended for higher resolutions.}
 }
 \value{
 path of the .hic file.

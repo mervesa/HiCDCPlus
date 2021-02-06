@@ -24,6 +24,7 @@
 #'@param chrs select a subset of chromosomes' e.g.,
 #'c('chr21','chr22'). Defaults to chromosomes in \code{gi_list}.
 #'@param gen_ver genomic assembly version: e.g., default \code{'hg19'}
+#'@param memory Java memory to generate .hic files. Defaults to 8. Up to 64 is recommended for higher resolutions.
 #'@return path of the .hic file.
 #'@examples 
 #'outdir<-paste0(tempdir(check=TRUE),'/')
@@ -35,7 +36,7 @@
 #'mode='raw')
 #'@export
 
-hicdc2hic <- function(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ver = "hg19") {
+hicdc2hic <- function(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ver = "hg19", memory=8) {
     options(scipen = 9999)
     gi_list_validate(gi_list)
     binsize<-gi_list_binsize_detect(gi_list)
@@ -56,19 +57,8 @@ hicdc2hic <- function(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ve
         dir.create(hicdc2hicoutputdir, showWarnings = FALSE, recursive = TRUE, mode = "0777")
     }
     # run pre
-    outdir<-tempdir(check=TRUE)
-    jarpath<-paste0(outdir,'/juicer_tools.jar')
-    if(!file.exists(jarpath)) {
-        if(.Platform$OS.type=="windows"){
-            utils::download.file(url='https://s3.amazonaws.com/hicfiles.tc4ga.com/public/juicer/juicer_tools_1.22.01.jar',
-                                 destfile=jarpath,quiet=TRUE, mode="wb", method=as.character(ifelse(capabilities("libcurl"),"libcurl","wininet")))
-        } else {
-            utils::download.file(url='https://s3.amazonaws.com/hicfiles.tc4ga.com/public/juicer/juicer_tools_1.22.01.jar',
-                                 destfile=jarpath,quiet=TRUE)
-            
-        }
-    }
-    system2("java", args = c("-Xmx8g", "-jar", path.expand(jarpath), "pre", "-v", "-d", "-r", binsize, path.expand(tmpfile), path.expand(hicdc2hicoutput), 
+    jarpath<-.download_juicer()
+    system2("java", args = c(paste0("-Xmx",memory,"g"), "-jar", path.expand(jarpath), "pre", "-v", "-d", "-r", binsize, path.expand(tmpfile), path.expand(hicdc2hicoutput), 
         gen_ver))
     # remove file
     system2("rm", args = path.expand(tmpfile))

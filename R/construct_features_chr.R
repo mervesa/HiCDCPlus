@@ -53,7 +53,8 @@ construct_features_chr <- function(chrom, gen = "Hsapiens", gen_ver = "hg19",
     genome.chromSize <- get_chr_sizes(gen, gen_ver, chrom)[chrom]
     genome.chromGR <- GenomicRanges::GRanges(seqnames = chrom, ranges = IRanges::IRanges(start = 1, end = genome.chromSize))
     
-    print(paste0("Using ", paste(chrom, collapse = " "), "and cut patterns ", paste(sig, collapse = " ")))
+    msg<-paste0("Using ", paste(chrom, collapse = " "), "and cut patterns ", paste(sig, collapse = " "))
+    message(msg)
     
     
     enzymeCutsites <- get_enzyme_cutsites(sig, gen, gen_ver, chrom)

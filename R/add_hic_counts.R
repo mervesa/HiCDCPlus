@@ -54,8 +54,15 @@ add_hic_counts <- function(gi_list, hic_path, chrs = NULL, add_inter = FALSE) {
         }
         count_matrix <- count_matrix %>% dplyr::filter(abs(.data$y - .data$x) <= Dthreshold) %>% dplyr::rename(startI = "x", 
             startJ = "y")
+        if (nrow(count_matrix)==0){
+            msg<-paste0(chrom, "does not have any counts in this file. Dropping from gi_list.")
+            warning(msg)
+            gi_list[[chrom]]<-NULL
+            next
+        }
         gi_list[[chrom]] <- add_2D_features(gi_list[[chrom]], count_matrix)
-        print(paste0("Chromosome ",chrom," intrachromosomal counts processed."))
+        msg<-paste0("Chromosome ",chrom," intrachromosomal counts processed.")
+        message(msg)
     }
     rm(count_matrix, chr_select)
     if (add_inter) {
@@ -88,7 +95,8 @@ add_hic_counts <- function(gi_list, hic_path, chrs = NULL, add_inter = FALSE) {
                 rm(count_matrix)
             }
             inter_matrix <- dplyr::bind_rows(inter_matrix, inter_matrix_add %>% dplyr::group_by(.data$chr, .data$x) %>% dplyr::summarize(inter = sum(.data$inter)))
-            print(paste0("Chromosome ",chrom," interchromosomal counts processed."))
+            msg<-paste0("Chromosome ",chrom," interchromosomal counts processed.")
+            message(msg)
         }
         inter_matrix <- inter_matrix %>% dplyr::ungroup() %>% dplyr::rename(start = "x")
         gi_list <- add_1D_features(gi_list, inter_matrix, chrs, agg = sum)

@@ -55,8 +55,15 @@ add_hicpro_allvalidpairs_counts <- function(gi_list, allvalidpairs_path,
     for (chrom in chrs) {
         allvalidpairs_chr <- allvalidpairs %>% dplyr::filter(.data$chr == chrom) %>% dplyr::select(.data$startI, .data$startJ, 
             .data$counts)
+        if (nrow(allvalidpairs_chr)==0){
+            msg<-paste0(chrom, "does not have any counts in this file. Dropping from gi_list.")
+            warning(msg)
+            gi_list[[chrom]]<-NULL
+            next
+        }
         gi_list[[chrom]] <- add_2D_features(gi_list[[chrom]], allvalidpairs_chr)
-        print(paste0("Chromosome ",chrom," intrachromosomal counts processed."))
+        msg<-paste0("Chromosome ",chrom," intrachromosomal counts processed.")
+        message(msg)
     }
     rm(allvalidpairs_chr, allvalidpairs)
     if (add_inter) {
@@ -80,7 +87,8 @@ add_hicpro_allvalidpairs_counts <- function(gi_list, allvalidpairs_path,
                 dplyr::filter(.data$chrJ == chrom) %>% dplyr::rename(chr = "chrJ", start = "startJ", inter = "counts") %>% 
                 dplyr::select(.data$chr, .data$start, .data$inter))
             gi_list <- add_1D_features(gi_list, allvalidpairs_chr, chrs = chrom, agg = sum)
-            print(paste0("Chromosome ",chrom," interchromosomal counts processed."))
+            msg<-paste0("Chromosome ",chrom," interchromosomal counts processed.")
+            message(msg)
         }
         rm(allvalidpairs_chr, allvalidpairs)
     }

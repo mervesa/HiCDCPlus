@@ -25,18 +25,7 @@
 #' @export
 straw_dump<-function(norm,fn,ch1,ch2,u,bs){
     options(scipen=9999)
-    outdir<-tempdir(check=TRUE)
-    jarpath<-paste0(outdir,'/juicer_tools.jar')
-    if(!file.exists(jarpath)) {
-    if(.Platform$OS.type=="windows"){
-    utils::download.file(url='https://s3.amazonaws.com/hicfiles.tc4ga.com/public/juicer/juicer_tools_1.22.01.jar',
-        destfile=jarpath,quiet=TRUE, mode="wb", method=as.character(ifelse(capabilities("libcurl"),"libcurl","wininet")))
-    } else {
-    utils::download.file(url='https://s3.amazonaws.com/hicfiles.tc4ga.com/public/juicer/juicer_tools_1.22.01.jar',
-        destfile=jarpath,quiet=TRUE)
-        
-    }
-    }
+    jarpath<-.download_juicer()
     tmpfile <- path.expand(base::tempfile())
     chrflag1<-grepl("^chr",ch1)
     chrflag2<-grepl("^chr",ch1)

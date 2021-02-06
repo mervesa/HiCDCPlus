@@ -43,8 +43,15 @@ add_hicpro_matrix_counts <- function(gi_list, absfile_path, matrixfile_path, chr
     rm(absI, absJ)
     for (chrom in chrs) {
         count_matrix_chr <- count_matrix %>% dplyr::filter(.data$chr == chrom)
+        if (nrow(count_matrix_chr)==0){
+            msg<-paste0(chrom, "does not have any counts in this file. Dropping from gi_list.")
+            warning(msg)
+            gi_list[[chrom]]<-NULL
+            next
+        }
         gi_list[[chrom]] <- add_2D_features(gi_list[[chrom]], count_matrix_chr)
-        print(paste0("Chromosome ",chrom," intrachromosomal counts processed."))
+        msg<-paste0("Chromosome ",chrom," intrachromosomal counts processed.")
+        message(msg)
     }
     rm(count_matrix_chr, count_matrix)
     # intercounts--hicpro files
