@@ -105,5 +105,5 @@ package = "HiCDCPlus"),
          output_path=outputdir,
          fitType = 'mean',
          binsize=50000,
-         diagnostics=TRUE)
+         diagnostics=FALSE)
 }

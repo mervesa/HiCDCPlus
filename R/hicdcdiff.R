@@ -71,7 +71,7 @@
 #'          output_path=outputdir,
 #'          fitType = 'mean',
 #'          binsize=50000,
-#'          diagnostics=TRUE)
+#'          diagnostics=FALSE)
 #'@export
 
 hicdcdiff <- function(input_paths, filter_file, output_path, bin_type = "Bins-uniform", binsize = 5000, granularity = 5000, 
