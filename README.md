@@ -2,14 +2,14 @@
 
 Merve Sahin
 
-02/05/2021
+02/06/2021
 
  A necessary task in the analysis of HiC or HiChIP count data is the detection of statistically significant and differential genomic interactions. 
   The count data are available as a table which reports, with regions typically as genomic regions binned uniformly or across restriction enzyme fragments, the number of interactions between pairs of genomic regions. The package HiCDCPlus
   provides methods to determine significant and differential chromatin interactions by use of a
   negative binomial generalized linear model, as well as implementations for TopDom to call topologically associating domains (TADs), and Juicer eigenvector to find the A/B compartments. This vignette explains the use of
   the package and demonstrates typical workflows on HiC and HiChIP data.
-  HiCDCPlus package version: 0.99.4
+  HiCDCPlus package version: 0.99.10
 output:
   html_document:
     keep_md: true

@@ -20,6 +20,7 @@
 #'@param fpath Outputs TAD annotations into files with paths beginning
 #'in \code{fpath}.
 #'@param window.size integer, number of bins to extend. Defaults to 5.
+#'@param verbose TRUE if you would like to troubleshoot TopDom.
 #'@return a list instance with TAD annotation reporting for each chromosome
 #'@examples 
 #'hic_path<-system.file("extdata", "GSE63525_HMEC_combined_example.hic",
@@ -29,7 +30,7 @@
 #'@export
 
 
-gi_list_topdom<-function(gi_list,chrs=NULL,file_out=FALSE,fpath=NULL,window.size=5){
+gi_list_topdom<-function(gi_list,chrs=NULL,file_out=FALSE,fpath=NULL,window.size=5, verbose=FALSE){
 if(is.null(chrs)){
     chrs<-names(gi_list)
 }
@@ -53,7 +54,7 @@ data.table::fwrite(sub_mat, tmpfile, sep="\t",
 outfile<-NULL
 if (file_out) outfile<-path.expand(paste0(fpath, "_", chr))
 out[[chrom]]<-.TopDom(matrix.file=tmpfile,
-             window.size=5, outFile=outfile)
+             window.size=5, outFile=outfile,verbose=verbose)
 system2("rm", args = path.expand(tmpfile))
 }
 return(out)

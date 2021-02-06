@@ -228,7 +228,7 @@ If you have .hic file instead, then you can perform ICE normalization with our H
 
 ```{r quickStart_ice2}
 hic_path<-system.file("extdata", "GSE63525_HMEC_combined_example.hic", package = "HiCDCPlus")
-gi_list=hic2icenorm_gi_list(hic_path,binsize=50e3,chrs=c('chr22'))
+gi_list=hic2icenorm_gi_list(hic_path,binsize=50e3,chrs=c('chr22'),Dthreshold=400e3)
 ```
 
 You can also output a ICE normalized .hic file from `hic2icenorm_gi_list` function if you set file_out=TRUE with the name of gsub(".hic","_icenorm.hic",hic_path).

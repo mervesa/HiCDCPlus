@@ -38,6 +38,11 @@
 
 hicdc2hic <- function(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ver = "hg19", memory=8) {
     options(scipen = 9999)
+    #set memory limit to max if i386
+    if (.Platform$OS.type=='windows'&Sys.getenv("R_ARCH")=="/i386") {
+        gc(reset=TRUE,full=TRUE)
+        utils::memory.limit(size=4095)
+    }
     gi_list_validate(gi_list)
     binsize<-gi_list_binsize_detect(gi_list)
     if (is.null(chrs)) 
@@ -58,7 +63,8 @@ hicdc2hic <- function(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ve
     }
     # run pre
     jarpath<-.download_juicer()
-    system2("java", args = c(paste0("-Xmx",memory,"g"), "-jar", path.expand(jarpath), "pre", "-v", "-d", "-r", binsize, path.expand(tmpfile), path.expand(hicdc2hicoutput), 
+    ifelse(.Platform$OS.type=='windows'&Sys.getenv("R_ARCH")=="/i386",min(memory,2),memory)
+    system2("java", args = c(paste0("-Xmx",as.character(memory),"g"), "-jar", path.expand(jarpath), "pre", "-v", "-d", "-r", binsize, path.expand(tmpfile), path.expand(hicdc2hicoutput), 
         gen_ver))
     # remove file
     system2("rm", args = path.expand(tmpfile))

@@ -30,7 +30,7 @@ straw_dump<-function(norm,fn,ch1,ch2,u,bs){
     chrflag1<-grepl("^chr",ch1)
     chrflag2<-grepl("^chr",ch1)
     df<-tryCatch({
-        system2("java", args = c("-Xmx8g", "-jar", path.expand(jarpath), "dump",
+        system2("java", args = c(ifelse(.Platform$OS.type=='windows'&Sys.getenv("R_ARCH")=="/i386","-Xmx2g","-Xmx8g"), "-jar", path.expand(jarpath), "dump",
                                  "observed", 
                                  norm,
                                  path.expand(fn),
@@ -41,7 +41,7 @@ straw_dump<-function(norm,fn,ch1,ch2,u,bs){
                                  tmpfile))
         as.data.frame(data.table::fread(tmpfile))},
         error=function(e){
-            system2("java", args = c("-Xmx8g", "-jar", path.expand(jarpath), "dump",
+            system2("java", args = c(ifelse(.Platform$OS.type=='windows'&Sys.getenv("R_ARCH")=="/i386","-Xmx2g","-Xmx8g"), "-jar", path.expand(jarpath), "dump",
                                      "observed", 
                                      "NONE",
                                      path.expand(fn),

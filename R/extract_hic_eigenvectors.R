@@ -34,17 +34,22 @@
 extract_hic_eigenvectors<-function(hicfile,mode='KR',binsize=100e3,
                                    chrs=NULL,gen="Hsapiens",gen_ver="hg19"){
     options(scipen=9999)
+    #set memory limit to max if i386
+    if (.Platform$OS.type=='windows'&Sys.getenv("R_ARCH")=="/i386") {
+        gc(reset=TRUE,full=TRUE)
+        utils::memory.limit(size=4095)
+    }
     filepaths<-c()
     if (is.null(chrs)){chrs<-get_chrs(gen,gen_ver)}
     jarpath<-.download_juicer()
     for(chrom in chrs){
     chr_select<-gsub("chr","",chrom)
     tmpfile <- paste0(base::tempfile(), ".txt")
-    tryCatch(system2("java", args = c("-Xmx8g", "-jar", path.expand(jarpath), 
+    tryCatch(system2("java", args = c(ifelse(.Platform$OS.type=='windows'&Sys.getenv("R_ARCH")=="/i386","-Xmx2g","-Xmx8g"), "-jar", path.expand(jarpath), 
                              "eigenvector", "-p", mode, path.expand(hicfile),
                              chr_select, "BP", binsize, path.expand(tmpfile))),
              error=function(e){
-            system2("java", args = c("-Xmx8g", "-jar", path.expand(jarpath), 
+            system2("java", args = c(ifelse(.Platform$OS.type=='windows'&Sys.getenv("R_ARCH")=="/i386","-Xmx2g","-Xmx8g"), "-jar", path.expand(jarpath), 
                             "eigenvector", "-p", mode, path.expand(hicfile),
                              chrom, "BP", binsize, path.expand(tmpfile)))                 
              })

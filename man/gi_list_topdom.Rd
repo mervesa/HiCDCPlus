@@ -9,7 +9,8 @@ gi_list_topdom(
   chrs = NULL,
   file_out = FALSE,
   fpath = NULL,
-  window.size = 5
+  window.size = 5,
+  verbose = FALSE
 )
 }
 \arguments{
@@ -29,6 +30,8 @@ beginning with \code{fpath}. Defaults to FALSE}
 in \code{fpath}.}
 
 \item{window.size}{integer, number of bins to extend. Defaults to 5.}
+
+\item{verbose}{TRUE if you would like to troubleshoot TopDom.}
 }
 \value{
 a list instance with TAD annotation reporting for each chromosome
