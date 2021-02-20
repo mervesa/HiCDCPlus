@@ -27,7 +27,7 @@ vignette: >
 knitr::opts_chunk$set(tidy = FALSE,
                       cache = FALSE,
                       dev = "png",
-                      message = FALSE, error = FALSE, warning = TRUE)
+                      message = FALSE, error = FALSE, warning = FALSE)
 library(HiCDCPlus)
 ```
 
