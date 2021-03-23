@@ -11,7 +11,8 @@ construct_features_chr(
   sig = "GATC",
   bin_type = "Bins-uniform",
   binsize = 5000,
-  wg_file = NULL
+  wg_file = NULL,
+  feature_type = "RE-based"
 )
 }
 \arguments{
@@ -33,6 +34,11 @@ RE fragment cut sites if bin_type='Bins-RE-sites'), defaults to 5000.}
 
 \item{wg_file}{path to the bigWig file containing mappability values across
 the genome of interest.}
+
+\item{feature_type}{'RE-based' if features are to be computed based on
+restriction enzyme fragments. 'RE-agnostic' ignores restriction enzyme cutsite 
+information and computes features gc and map based on binwide averages. bin_type
+has to be 'Bins-uniform' if \code{feature_type='RE-agnostic'}.}
 }
 \value{
 a features 'bintolen' file that contains GC, mappability and length

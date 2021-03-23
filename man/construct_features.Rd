@@ -12,7 +12,8 @@ construct_features(
   bin_type = "Bins-uniform",
   binsize = 5000,
   wg_file = NULL,
-  chrs = NULL
+  chrs = NULL,
+  feature_type = "RE-based"
 )
 }
 \arguments{
@@ -39,6 +40,11 @@ the genome of interest.}
 \item{chrs}{select a subset of chromosomes' e.g.,
 c('chr21','chr22'). Defaults to all chromosomes (except Y and M)
 in the genome specified.}
+
+\item{feature_type}{'RE-based' if features are to be computed based on
+restriction enzyme fragments. 'RE-agnostic' ignores restriction enzyme cutsite 
+information and computes features gc and map based on binwide averages. bin_type
+has to be 'Bins-uniform' if \code{feature_type='RE-agnostic'}.}
 }
 \value{
 a features 'bintolen' file that contains GC, mappability and length

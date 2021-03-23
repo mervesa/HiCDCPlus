@@ -20,6 +20,10 @@
 #'RE fragment cut sites if bin_type='Bins-RE-sites'), defaults to 5000.
 #'@param wg_file path to the bigWig file containing mappability values across
 #'the genome of interest.
+#'@param feature_type 'RE-based' if features are to be computed based on
+#'restriction enzyme fragments. 'RE-agnostic' ignores restriction enzyme cutsite 
+#'information and computes features gc and map based on binwide averages. bin_type
+#'has to be 'Bins-uniform' if \code{feature_type='RE-agnostic'}.
 #'@return a features 'bintolen' file that contains GC, mappability and length
 #'features.
 #'@examples df<-construct_features_chr(chrom='chr22',
@@ -29,7 +33,7 @@
 
 construct_features_chr <- function(chrom, gen = "Hsapiens", gen_ver = "hg19",
                                sig = "GATC", bin_type = "Bins-uniform", binsize = 5000, 
-                               wg_file = NULL) {
+                               wg_file = NULL, feature_type = "RE-based") {
     
     getGC <- function(regions) {
         genome <- paste("BSgenome.", gen, ".UCSC.", gen_ver, sep = "")
@@ -53,6 +57,7 @@ construct_features_chr <- function(chrom, gen = "Hsapiens", gen_ver = "hg19",
     genome.chromSize <- get_chr_sizes(gen, gen_ver, chrom)[chrom]
     genome.chromGR <- GenomicRanges::GRanges(seqnames = chrom, ranges = IRanges::IRanges(start = 1, end = genome.chromSize))
     
+    if (feature_type=="RE-based"){
     msg<-paste0("Using ", paste(chrom, collapse = " "), "and cut patterns ", paste(sig, collapse = " "))
     message(msg)
     
@@ -67,6 +72,11 @@ construct_features_chr <- function(chrom, gen = "Hsapiens", gen_ver = "hg19",
         RE_sites <- GenomeInfoDb::sortSeqlevels(c(GenomicRanges::GRanges(seqnames = chrom, ranges = IRanges::IRanges(start = 1, 
                                                                                                                        end = minstart)), RE_sites))
         RE_sites <- sort(RE_sites)
+    }
+    } else {
+        if (bin_type!="Bins-uniform") stop("feature_type=RE-agnostic requires a fixed binsize.")
+        msg<-paste0("Using ", paste(chrom, collapse = " "), " RE agnostic")
+        message(msg)
     }
     
     
@@ -142,13 +152,16 @@ construct_features_chr <- function(chrom, gen = "Hsapiens", gen_ver = "hg19",
         names(binsGR) <- paste(as.character(GenomicRanges::seqnames(binsGR)), GenomicRanges::start(binsGR), GenomicRanges::end(binsGR), 
                                sep = "-")
         
-
-        medians <- (GenomicRanges::start(enzymeCutsites) + GenomicRanges::end(enzymeCutsites))/2
+        #Read mappability data if exists
         if (!is.null(wgdata)) {
-                wgdata <- wgdata[GenomicRanges::seqnames(wgdata) == chrom]
+            wgdata <- wgdata[GenomicRanges::seqnames(wgdata) == chrom]
         } else {
-                wgdata <- NULL
-        }
+            wgdata <- NULL
+        }        
+        
+        if (feature_type=="RE-based"){
+        medians <- (GenomicRanges::start(enzymeCutsites) + GenomicRanges::end(enzymeCutsites))/2
+
         # 500bp from ends for mappability and len features
         FragmentendsL <- GenomicRanges::GRanges(seqnames = chrom, ranges = IRanges::restrict(IRanges::IRanges(end = medians - 
                                                                                                                                1, width = 500), start = 1, end = genome.chromSize))
@@ -158,6 +171,9 @@ construct_features_chr <- function(chrom, gen = "Hsapiens", gen_ver = "hg19",
         hits <- as.data.frame(GenomicRanges::findOverlaps(ends, binsGR, type = "within", select = "all"))
         LR <- data.frame(bins = names(binsGR[hits[[2]]]), start = GenomicRanges::start(ends[hits[[1]]]), end = GenomicRanges::end(ends[hits[[1]]]), 
                         stringsAsFactors = FALSE)
+        } else {
+        LR <- data.frame(bins=names(binsGR), start=GenomicRanges::start(binsGR), end=GenomicRanges::end(binsGR),stringsAsFactors = FALSE)
+        }
         LRgr <- GenomicRanges::GRanges(chrom, IRanges::IRanges(start = LR$start, end = LR$end))
         if (!is.null(wgdata)) {
             LR$map <- getMap(LRgr, wgdata)
@@ -165,12 +181,17 @@ construct_features_chr <- function(chrom, gen = "Hsapiens", gen_ver = "hg19",
             LR$map <- 0
         }
         map <- LR %>% dplyr::group_by(.data$bins) %>% dplyr::summarize(map = mean(map))
+        if (feature_type=="RE-based"){
         # effective length
         ir <- IRanges::IRanges(LR$start, LR$end)
         LR$group <- as.data.frame(GenomicRanges::findOverlaps(ir, IRanges::reduce(ir)))[[2]]
         len <- LR %>% dplyr::group_by(.data$group, .data$bins) %>% dplyr::summarize(start = min(start), end = max(end)) %>% 
             dplyr::mutate(width = .data$end - .data$start + 1) %>% dplyr::group_by(.data$bins) %>% dplyr::summarize(len = sum(.data$width))
-            
+        } else {
+        len <- NULL
+        }
+        
+        if (feature_type=="RE-based"){    
         # 200bp from ends for gc feature
         FragmentendsL <- GenomicRanges::GRanges(seqnames = chrom, ranges = IRanges::IRanges(end = medians - 1, 
                                                                                                         width = 200))
@@ -180,11 +201,21 @@ construct_features_chr <- function(chrom, gen = "Hsapiens", gen_ver = "hg19",
         hits <- as.data.frame(GenomicRanges::findOverlaps(ends, binsGR, type = "within", select = "all"))
         LR2 <- data.frame(bins = names(binsGR[hits[[2]]]), start = GenomicRanges::start(ends[hits[[1]]]), end = GenomicRanges::end(ends[hits[[1]]]), 
                               stringsAsFactors = FALSE)
+        } else {
+        LR2<-LR%>%dplyr::select(.data$bins,.data$start,.data$end)
+        }
         LR2gr <- GenomicRanges::GRanges(chrom, IRanges::IRanges(start = LR2$start, end = LR2$end))
         LR2$gc <- getGC(LR2gr)
         gc <- LR2 %>% dplyr::group_by(.data$bins) %>% dplyr::summarize(gc = mean(gc))
+        if (!is.null(len)){
         LR <- dplyr::left_join(dplyr::left_join(gc, map), len)
+        } else {
+        LR <- dplyr::left_join(gc, map)
+        }
         bintolen <- as.data.frame(LR)
+        if (sum(bintolen$map)==0){
+            bintolen<-bintolen%>%dplyr::select(-.data$map)
+        }
         rownames(bintolen) <- bintolen$bins
         allbins <- data.frame(bins = names(binsGR), stringsAsFactors = FALSE)
         bintolen <- suppressWarnings(dplyr::left_join(allbins, bintolen) %>% 

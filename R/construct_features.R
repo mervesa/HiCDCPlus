@@ -23,6 +23,10 @@
 #'@param chrs select a subset of chromosomes' e.g.,
 #'c('chr21','chr22'). Defaults to all chromosomes (except Y and M)
 #'in the genome specified.
+#'@param feature_type 'RE-based' if features are to be computed based on
+#'restriction enzyme fragments. 'RE-agnostic' ignores restriction enzyme cutsite 
+#'information and computes features gc and map based on binwide averages. bin_type
+#'has to be 'Bins-uniform' if \code{feature_type='RE-agnostic'}.
 #'@return a features 'bintolen' file that contains GC, mappability and length
 #'features.
 #'@examples 
@@ -34,7 +38,7 @@
 
 construct_features <- function(output_path, gen = "Hsapiens", gen_ver = "hg19",
                       sig = "GATC", bin_type = "Bins-uniform", binsize = 5000, 
-                      wg_file = NULL, chrs = NULL) {
+                      wg_file = NULL, chrs = NULL, feature_type = "RE-based") {
     
     if (is.null(chrs)) {
         chrs <- get_chrs(gen, gen_ver)
@@ -48,7 +52,8 @@ construct_features <- function(output_path, gen = "Hsapiens", gen_ver = "hg19",
                                           sig = sig, 
                                           bin_type = bin_type, 
                                           binsize = binsize, 
-                                          wg_file = wg_file)
+                                          wg_file = wg_file,
+                                          feature_type = feature_type)
     }
     bintolen<-suppressWarnings(dplyr::bind_rows(bintolen))
     bintolenoutput <- path.expand(paste0(output_path, "_bintolen.txt.gz"))

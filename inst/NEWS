@@ -1,2 +1,4 @@
+Changes in version 0.99.13 (2021-03-23)
++ Added RE-agnostic features into construct_features
 Changes in version 0.99.12 (2021-02-19)
 + Submitted to Bioconductor
