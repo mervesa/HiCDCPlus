@@ -64,8 +64,21 @@ hicdc2hic <- function(gi_list, hicfile, mode = "normcounts", chrs = NULL, gen_ve
     # run pre
     jarpath<-.download_juicer()
     ifelse(.Platform$OS.type=='windows'&Sys.getenv("R_ARCH")=="/i386",min(memory,2),memory)
-    system2("java", args = c(paste0("-Xmx",as.character(memory),"g"), "-jar", path.expand(jarpath), "pre", "-v", "-d", "-r", binsize, path.expand(tmpfile), path.expand(hicdc2hicoutput), 
-        gen_ver))
+    if (mode=="zvalue"){
+        #make sure negative values get processed
+        system2("java", args = c(paste0("-Xmx",as.character(memory),"g"), "-jar",
+                                 path.expand(jarpath), "pre", "-v", "-d", "-n",
+                                 "-r", binsize,
+                                 "-m", -2147400000,
+                                 path.expand(tmpfile), path.expand(hicdc2hicoutput), 
+                                 gen_ver))
+    } else {
+    system2("java", args = c(paste0("-Xmx",as.character(memory),"g"), "-jar",
+                             path.expand(jarpath), "pre", "-v", "-d",
+                             "-r", binsize, path.expand(tmpfile),
+                             path.expand(hicdc2hicoutput), 
+                             gen_ver))
+    }
     # remove file
     system2("rm", args = path.expand(tmpfile))
     return(hicdc2hicoutput)

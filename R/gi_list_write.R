@@ -118,7 +118,7 @@ gi_list_write <- function(gi_list, fname, chrs = NULL, columns = "minimal", rows
                 gi.out <- cbind(infoI, infoJ) %>% dplyr::mutate(score = scoredata, strI = 0, strJ = 0, fragI = 0, fragJ = 1, 
                 startI = .data$startI + binsize/2, startJ = .data$startJ + binsize/2) %>% dplyr::select(.data$strI, .data$chrI, 
                 .data$startI, .data$fragI, .data$strJ, .data$chrJ, .data$startJ, .data$fragJ, .data$score) %>% dplyr::filter(is.finite(.data$score) & 
-                .data$score > 0)
+                .data$score != 0)
             }
         } else {
             gi.out <- data.frame(gi_list[[chrom]]) %>% dplyr::rename(chr1 = "seqnames1", chr2 = "seqnames2") %>% dplyr::rename_all(function(x) gsub("2", 

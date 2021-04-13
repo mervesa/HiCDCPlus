@@ -1,3 +1,5 @@
+Changes in version 0.99.14 (2021-04-13)
++ Fixed bug that prevents passing negative values to .hic files
 Changes in version 0.99.13 (2021-03-23)
 + Added RE-agnostic features into construct_features
 Changes in version 0.99.12 (2021-02-19)
