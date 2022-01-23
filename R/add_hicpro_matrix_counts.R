@@ -1,4 +1,4 @@
-#'add_hicpro_matrix.counts
+#'add_hicpro_matrix_counts
 #'
 #'This function converts HiC-Pro matrix and bed outputs into a gi_list instance.
 #'@import BSgenome
