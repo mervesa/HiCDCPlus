@@ -231,7 +231,7 @@ hic_path<-system.file("extdata", "GSE63525_HMEC_combined_example.hic", package =
 gi_list=hic2icenorm_gi_list(hic_path,binsize=50e3,chrs=c('chr22'),Dthreshold=400e3)
 ```
 
-You can also output a ICE normalized .hic file from `hic2icenorm_gi_list` function if you set file_out=TRUE with the name of gsub(".hic","_icenorm.hic",hic_path).
+You can also output a ICE normalized .hic file to the path `gsub(".hic","_icenorm.hic",hic_path)` from `hic2icenorm_gi_list` if you set `hic_out=TRUE` to your call to this function.
 
 ### Finding TADs using TopDom {#topdom}
 
