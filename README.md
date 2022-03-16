@@ -2,7 +2,7 @@
 
 Merve Sahin
 
-04/13/2021
+03/15/2022
 
  A necessary task in the analysis of HiC or HiChIP count data is the detection of statistically significant and differential genomic interactions. 
   The count data are available as a table which reports, with regions typically as genomic regions binned uniformly or across restriction enzyme fragments, the number of interactions between pairs of genomic regions. The package HiCDCPlus
@@ -418,7 +418,7 @@ hic_path<-system.file("extdata", "GSE63525_HMEC_combined_example.hic", package =
 gi_list=hic2icenorm_gi_list(hic_path,binsize=50e3,chrs=c('chr21','chr22'))
 ```
 
-You can also output a ICE normalized .hic file from `hic2icenorm_gi_list` function if you set file_out=TRUE with the name of gsub(".hic","_icenorm.hic",hic_path).
+You can also output a ICE normalized .hic file to the path `gsub(".hic","_icenorm.hic",hic_path)` from `hic2icenorm_gi_list` if you set hic_out=TRUE to your call to this function.
 
 ### Finding TADs using TopDom {#topdom}
 
