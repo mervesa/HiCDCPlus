@@ -30,7 +30,8 @@ hic2icenorm_gi_list<-function(hic_path,binsize=50000,chrs=NULL,hic_output=FALSE,
                               gen="Hsapiens",gen_ver="hg19",Dthreshold=Inf){
 #convert .hic files to HiTC object with ICE normalized counts
 if (is.null(chrs)){
-  chrs<-get_chrs(gen,gen_ver)[chrs%in%c("chrY","chrM")]
+    chrs<-get_chrs(gen,gen_ver)
+    chrs<-chrs[!chrs%in%c("chrY","chrM")]
 }
 
 htc_list<-list()
