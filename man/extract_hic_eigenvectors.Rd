@@ -7,7 +7,7 @@
 extract_hic_eigenvectors(
   hicfile,
   mode = "KR",
-  binsize = 1e+05,
+  binsize = 250e3,
   chrs = NULL,
   gen = "Hsapiens",
   gen_ver = "hg19"
@@ -48,7 +48,7 @@ the eigenvector elements.
 }
 \examples{
 eigenvector_filepaths<-extract_hic_eigenvectors(
-hicfile=system.file("extdata", "GSE63525_HMEC_combined_example.hic",
+hicfile=system.file("extdata", "eigenvector_example.hic",
 package = "HiCDCPlus"),
-chrs=c("chr22"),binsize=50e3)
+chrs=c("chr22"),binsize=250e3,mode="NONE")
 }
