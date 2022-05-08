@@ -8,16 +8,16 @@ citEntry(entry = "Article",
                    as.person("Kinsey Van Deynze"),
                    as.person("Richard Koche"),
                    as.person("Christina S. Leslie")),
-  journal      = "BioRxiv",
-  year         = "2020",
-  volume       = "10.11",
-  number       = "335273",
-  pages        = "1--16",
-  url          = "https://doi.org/10.1101/2020.10.11.335273",
+  journal      = "Nature Communications",
+  year         = "2021",
+  volume       = "12",
+  number       = "3366",
+  pages        = "1--11",
+  url          = "https://doi.org/10.1038/s41467-021-23749-x",
 
   textVersion  =
   paste("Merve Sahin et al. (2020).",
         "HiC-DC+: systematic 3D interaction calls and differential analysis for Hi-C and HiChIP.",
-        "BioRxiv, 2020.10.11(335273), 1-16.",
-        "URL https://doi.org/10.1101/2020.10.11.335273.")
+        "Nature Communications, 12(3366), 1-11.",
+        "URL https://doi.org/10.1038/s41467-021-23749-x.")
 )

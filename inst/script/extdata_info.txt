@@ -1,4 +1,4 @@
-To explore the basics of the HiCDCPlus package, we have included five Hi-C samples in .hic format extracted from GSE63525 and GSE131651 for human chromosomes 21 and 22, an index file suitable as an input for hicdcdiff (GSE131651_analysis_indices.txt.gz) for use with GSE131651 .hic files, and a bintolen file example (test_bintolen.txt.gz) compatible for use with the example provided in ?generate_bintolen_gi_list
+To explore the basics of the HiCDCPlus package, we have included six Hi-C samples in .hic format extracted from GSE63525 and GSE131651 for human (hg19) chromosomes 21 and 22, an index file suitable as an input for hicdcdiff (GSE131651_analysis_indices.txt.gz) for use with GSE131651 .hic files, and a bintolen file example (test_bintolen.txt.gz) compatible for use with the example provided in ?generate_bintolen_gi_list. The final file, eigenvector_example.hic is a 250kb aggregation of GSE63525_HMEC_combined_example.hic on human (hg19) chromosome 22.
 
 If you have installed this package, you can obtain the directory where these samples, index file example and bintolen file example are with the command:
 

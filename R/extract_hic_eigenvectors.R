@@ -14,7 +14,7 @@
 #'Knight-Ruiz normalization, 'VC' for Vanilla-Coverage normalization and
 #''VC_SQRT' for square root vanilla coverage. Defaults to 'KR'.
 #'@param binsize the uniform binning size for compartment scores in bp.
-#' Defaults to 100e3.
+#' Defaults to 250e3 (minimum possible setting).
 #'@param chrs a subset of chromosomes' e.g.,
 #'c('chr21','chr22'). Defaults to all chromosomes except "Y", and "M" for
 #'the specified \code{gen} and \code{gen_ver}.
@@ -26,12 +26,12 @@
 #'chromosome. File paths 
 #'follow \code{gsub('.hic','_<chromosome>_eigenvectors.txt',hicfile)}
 #'@examples eigenvector_filepaths<-extract_hic_eigenvectors(
-#'hicfile=system.file("extdata", "GSE63525_HMEC_combined_example.hic",
-#'package = "HiCDCPlus"),
-#'chrs=c("chr22"),binsize=50e3)
+#'hicfile=system.file("extdata", "eigenvector_example.hic",
+#'package = "HiCDCPlus", mode="NONE"),
+#'chrs=c("chr22"),binsize=250e3)
 #'@export
 
-extract_hic_eigenvectors<-function(hicfile,mode='KR',binsize=100e3,
+extract_hic_eigenvectors<-function(hicfile,mode='KR',binsize=250e3,
                                    chrs=NULL,gen="Hsapiens",gen_ver="hg19"){
     options(scipen=9999)
     #set memory limit to max if i386

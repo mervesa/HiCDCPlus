@@ -35,11 +35,11 @@ library(HiCDCPlus)
 **Note:** if you use HiCDCPlus in published research, please cite:
 
 > Sahin, M., Wong, W., Zhan, Y., Van Deyze, K., Koche, R., and Leslie, C. S.
-> (2020)
+> (2021)
 > HiC-DC+: systematic 3D interaction calls and differential analysis 
 > for Hi-C and HiChIP
-> *BioRxiv*, **335273**.
-> [10.1101/TBD](http://dx.doi.org/10.1101/2020.10.11.335273)
+> *Nature Communications*, **12(3366)**.
+> [10.1038/s41467-021-23749-x](http://dx.doi.org/10.1038/s41467-021-23749-x)
 
 # Installation
 
@@ -50,6 +50,13 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
 BiocManager::install("HiCDCPlus")
+```
+
+If you are reinstalling the package, we recommend erasing the associated file cache for the package. The cache folder location can be obtained by running.
+
+```{r quickStart_sig_2, eval=FALSE}
+cache <- rappdirs::user_cache_dir(appname="HiCDCPlus")
+print(cache)
 ```
 
 # Standard workflow
@@ -247,12 +254,13 @@ tads<-gi_list_topdom(gi_list,chrs=c("chr22"),window.size = 10)
 
 ```{r quickStart_comp1, eval=FALSE}
 extract_hic_eigenvectors(
-  hicfile=system.file("extdata", "GSE63525_HMEC_combined_example.hic", package = "HiCDCPlus"),
+  hicfile=system.file("extdata", "eigenvector_example.hic", package = "HiCDCPlus"),
   mode = "KR",
   binsize = 50e3,
   chrs = "chr22",
   gen = "Hsapiens",
-  gen_ver = "hg19"
+  gen_ver = "hg19",
+  mode = "NONE"
 )
 ```
 

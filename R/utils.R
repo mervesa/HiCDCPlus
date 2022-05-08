@@ -943,7 +943,7 @@
 .download_juicer <-
     function()
 {
-    fileURL <- "https://s3.amazonaws.com/hicfiles.tc4ga.com/public/juicer/juicer_tools_1.22.01.jar"
+    fileURL <- "https://github.com/aidenlab/Juicebox/releases/download/v.2.13.07/juicer_tools.jar"
 
     bfc <- .get_cache()
     rid <- BiocFileCache::bfcquery(bfc, "juicer_tools", "rname")$rid

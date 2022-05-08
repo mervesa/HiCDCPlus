@@ -2,14 +2,14 @@
 
 Merve Sahin
 
-03/15/2022
+05/08/2022
 
  A necessary task in the analysis of HiC or HiChIP count data is the detection of statistically significant and differential genomic interactions. 
   The count data are available as a table which reports, with regions typically as genomic regions binned uniformly or across restriction enzyme fragments, the number of interactions between pairs of genomic regions. The package HiCDCPlus
   provides methods to determine significant and differential chromatin interactions by use of a
   negative binomial generalized linear model, as well as implementations for TopDom to call topologically associating domains (TADs), and Juicer eigenvector to find the A/B compartments. This vignette explains the use of
   the package and demonstrates typical workflows on HiC and HiChIP data.
-  HiCDCPlus package version: 0.99.14
+  HiCDCPlus package version: 0.99.16
 output:
   html_document:
     keep_md: true
@@ -21,11 +21,11 @@ output:
 **Note:** if you use HiCDCPlus in published research, please cite:
 
 > Sahin, M., Wong, W., Zhan, Y., Van Deyze, K., Koche, R., and Leslie, C. S.
-> (2020)
+> (2021)
 > HiC-DC+: systematic 3D interaction calls and differential analysis 
 > for Hi-C and HiChIP
-> *BioRxiv*, **335273**.
-> [10.1101/2020.10.11.335273](http://dx.doi.org/10.1101/2020.10.11.335273)
+> *Nature Communications*, **12(3366)**.
+> [10.1038/s41467-021-23749-x](http://dx.doi.org/10.1038/s41467-021-23749-x)
 
 # Installation
 
@@ -37,6 +37,13 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
 BiocManager::install("HiCDCPlus")
+```
+
+If you are reinstalling the package, we recommend erasing the associated file cache for the package. The cache folder location can be obtained by running.
+
+```r
+cache <- rappdirs::user_cache_dir(appname="HiCDCPlus")
+print(cache)
 ```
 
 # Standard workflow
@@ -497,12 +504,13 @@ tads<-gi_list_topdom(gi_list,chrs=c("chr21","chr22"),window.size = 10)
 
 ```r
 extract_hic_eigenvectors(
-  hicfile=system.file("extdata", "GSE63525_HMEC_combined_example.hic", package = "HiCDCPlus"),
+  hicfile=system.file("extdata", "eigenvector_example.hic", package = "HiCDCPlus"),
   mode = "KR",
   binsize = 50e3,
   chrs = "chr22",
   gen = "Hsapiens",
-  gen_ver = "hg19"
+  gen_ver = "hg19",
+  mode = "NONE"
 )
 ```
 
