@@ -946,10 +946,10 @@
     fileURL <- "https://github.com/aidenlab/Juicebox/releases/download/v.2.13.07/juicer_tools.jar"
 
     bfc <- .get_cache()
-    rid <- BiocFileCache::bfcquery(bfc, "juicer_tools", "rname")$rid
+    rid <- BiocFileCache::bfcquery(bfc, "juicer_tools_v2", "rname")$rid
     if (!length(rid)) {
      message( "Downloading Juicer Tools" )
-     rid <- names(BiocFileCache::bfcadd(bfc, "juicer_tools", fileURL ))
+     rid <- names(BiocFileCache::bfcadd(bfc, "juicer_tools_v2", fileURL ))
     }
     if (!isFALSE(BiocFileCache::bfcneedsupdate(bfc, rid)))
     BiocFileCache::bfcdownload(bfc, rid)
